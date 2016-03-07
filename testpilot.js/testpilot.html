@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<!--
+	The MIT License (MIT)
+
+	Copyright (c) 2015 David Padgett/Summit Street, Inc.
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+-->
+
+<!-- testpilot.js/src/main/html/testpilot.html -->
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+		<title>testpilot.js</title>
+		<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+		<link rel="stylesheet" title="Standard Style" href="css/testpilot.css" media="screen" type="text/css"/>
+	</head>
+
+	<body id="testPilot">
+
+		<script type="text/javascript" src="javascript/annotations.js"></script>
+		<script type="text/javascript" src="javascript/testpilot.js"></script>
+
+		<script type="text/javascript">
+			//<![CDATA[
+			var frameworkState = __TestPilot.FRAMEWORK_PREFIX;
+			var fileList = [];
+			document.getElementById("testPilot").onload = testPilotLoadEventHandler;
+
+			function createDomElement(tagName, childNodes, attributes) {
+				var element = document.createElement(tagName);
+				for (var i = 0; i < childNodes.length; ++i) {
+					var isNode = childNodes[i] != null && childNodes[i].nodeName != null && childNodes[i].nodeType != null;
+					var childNode = isNode ? childNodes[i] : document.createTextNode(childNodes[i].toString());
+					element.appendChild(childNode);
+				}
+				for (attributeName in attributes) {
+					if (attributes[attributeName] != null) {
+						element.setAttribute(attributeName, attributes[attributeName]);
+					}
+				}
+				return (element);
+			}
+
+			function createRow(rows, columns) {
+				var elementClass = rows.length % 2 == 0 ? "even" : "odd";
+				rows.push(createDomElement("tr", columns, {class: elementClass}));
+			}
+
+			function displayOptionsClickEventHandler(event) {
+				try {
+					event.stopPropagation();
+					event.preventDefault();
+					var isEnabled = event.target.className == "enabled";
+					event.target.className = isEnabled ? "disabled" : "enabled";
+					if (fileList.length > 0) {
+						renderDetailData();
+					}
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			// Execute all unit tests if all files have been loaded and evaluated.
+			// If this is the case, run the unit tests and display the results.
+
+			function execute() {
+				try {
+					var executeTests = true;
+					for (var j = 0; executeTests && j < fileList.length; ++j) {
+						executeTests = fileList[j][frameworkState] != null && fileList[j][frameworkState].processed;
+					}
+					if (executeTests) {
+						__TestPilot.runUnitTests();
+						renderSummary();
+						renderDetailData();
+					}
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			function loadFiles(files) {
+				for (var i = 0; i < files.length; ++i) {
+					var file = files[i];
+
+					// Initialize TestPilot state attached to the File object.
+
+					file[frameworkState] = {
+						processed: false,
+						registeredTests: [],
+						error: null
+					};
+
+					if (file.verb != null) {
+						loadUrlResource(file);
+					}
+					else {
+						loadLocalResource(file);
+					}
+				}
+			}
+
+			function loadLocalResource(file) {
+				var fileReader = new FileReader();
+				fileReader.onload = (function(file) {
+					return (function(event) {
+						processFile(file, event.target.result);
+						execute();
+					});
+				})(file);
+				fileReader.readAsText(file);
+			}
+
+			function loadUrlResource(file) {
+				var xmlHttpRequest = new XMLHttpRequest();
+				xmlHttpRequest.open("GET", file.name, false);
+				xmlHttpRequest.send("");
+				processFile(file, xmlHttpRequest.responseText);
+				execute();
+			}
+
+			function processFile(file, contents) {
+
+				// Initialize TestPilot state attached to the File object.
+
+				file[frameworkState].processed = true;
+
+				// Evaluate the contents of the file.
+
+				try {
+					var previousTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
+					eval(contents);
+					var currentTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
+					var registeredTests = [];
+					for (var i = 0; i < currentTestClasses.length; ++i) {
+						var notFound = true;
+						for (var j = 0; notFound && j < previousTestClasses.length; ++j) {
+							notFound = currentTestClasses[i] != previousTestClasses[j];
+						}
+						if (notFound) {
+							registeredTests.push(currentTestClasses[i]);
+						}
+					}
+
+					// If the file contents TestPilot code, add the list of test
+					// classes to the TestPilot state attached to the File object.
+
+					if (registeredTests != null) {
+						file[frameworkState].registeredTests = registeredTests;
+					}
+				}
+				catch (e) {
+					file[frameworkState].error = e;
+					console.log("TestPilot: Unable to load " + file.name + " - " + e);
+				}
+			}
+
+			function reloadFilesOptionClickEventHandler() {
+				try {
+					__TestPilot.initializeTestPilot();
+					renderSummary();
+					loadFiles(fileList);
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			function removeChildNodes(elementId) {
+			var element = (elementId.constructor == String) ? document.getElementById(elementId) : elementId;
+				for (var i = 0; i < element.childNodes.length; ++i) {
+					var node = element.childNodes.item(i);
+					element.removeChild(node);
+				}
+			}
+
+			function renderDetailData() {
+
+				// Retrieve configuration settings.
+
+				var renderSuccessResults = document.getElementById("renderSuccessResultsOption").className == "enabled";
+				var renderFailedResults = document.getElementById("renderFailedResultsOption").className == "enabled";
+				var renderAssumptions = document.getElementById("renderAssumptionsOption").className == "enabled";
+				var renderAssertions = document.getElementById("renderAssertionsOption").className == "enabled";
+				var renderErrors = document.getElementById("renderErrorsOption").className == "enabled";
+				var renderMessages = document.getElementById("renderMessagesOption").className == "enabled";
+
+				// Display relevant information for each file loaded into TestPilot.
+
+				var columnNames = ["status", "category", "file", "class", "operation", "description"];
+				var rows = [];
+				var columns = null;
+
+				for (var i = 0; i < fileList.length; ++i) {
+					var file = fileList[i];
+					if (file[frameworkState].registeredTests.length == 0) {
+						if ((renderSuccessResults && file[frameworkState].error == null) || (renderFailedResults && file[frameworkState].error != null)) {
+							renderJavaScriptFileDetail(rows, file, columnNames);
+						}
+					}
+					else {
+						var results = __TestPilot.getResults(file[frameworkState].registeredTests);
+						renderUnitTest(rows, file.name, columnNames, results, renderSuccessResults, renderFailedResults);
+						for (var j = 0; j < results.length; ++j) {
+							renderResult(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults);
+							renderResultMessages(rows, file.name, columnNames, results[j], renderSuccessResults, renderMessages);
+							renderResultAssumptions(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults, renderAssumptions);
+							renderResultAssertions(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults, renderAssertions);
+							renderResultError(rows, file.name, columnNames, results[j], renderFailedResults, renderErrors);
+						}
+					}
+				}
+
+				renderTable("detailData", columnNames, rows);
+			}
+
+			function renderError(error) {
+				removeChildNodes("errorData");
+				document.getElementById("errorData").appendChild(createDomElement("pre", error.message + "\n" + error.stack));
+			}
+
+			function renderJavaScriptFileDetail(rows, file, columnClasses) {
+				var columns = [
+					createDomElement("td", [file[frameworkState].error == null ? "Success" : "Failed"], {class: columnClasses[0]}),
+					createDomElement("td", ["JavaScript"], {class: columnClasses[1]}),
+					createDomElement("td", [file.name], {class: columnClasses[2]}),
+					createDomElement("td", [""], {class: columnClasses[3]}),
+					createDomElement("td", [""], {class: columnClasses[4]}),
+					createDomElement("td", [file[frameworkState].error != null ? file[frameworkState].error.message : ""], {class: columnClasses[5]})
+				];
+				createRow(rows, columns);
+			}
+
+			// Add the summary of the result, including passed/failed status, the
+			// test category, name, and description.
+
+			function renderResult(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults) {
+				if ((renderSuccessResults && result.passed) || (renderFailedResults && !result.passed)) {
+					var columns = [
+						createDomElement("td", [result.passed ? "Success" : "Failed"], {class: columnClasses[0]}),
+						createDomElement("td", [result.category], {class: columnClasses[1]}),
+						createDomElement("td", [fileName], {class: columnClasses[2]}),
+						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
+						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+						createDomElement("td", [result.description != null ? result.description : ""], {class: columnClasses[5]})
+					];
+					createRow(rows, columns);
+				}
+			}
+
+			// Optionally add the assertions evaluated during the test.
+
+			function renderResultAssertions(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults, renderAssertions) {
+				for (var i = 0; renderAssertions && i < result.assertions.length; ++i) {
+					var assertion = result.assertions[i];
+					if ((renderSuccessResults && assertion.result) || (renderFailedResults && !assertion.result)) {
+						var columns = [
+							createDomElement("td", [assertion.result ? "True" : "False"], {class: columnClasses[0]}),
+							createDomElement("td", ["Assertion"], {class: columnClasses[1]}),
+							createDomElement("td", [fileName], {class: columnClasses[2]}),
+							createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
+							createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+							createDomElement("td", ["[" + assertion.type + "] " + (assertion.description != null ? assertion.description : "")], {class: columnClasses[5]})
+						];
+						createRow(rows, columns);
+					}
+				}
+			}
+
+			// Optionally add the assumptions evaluated during the test.
+
+			function renderResultAssumptions(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults, renderAssumptions) {
+				for (var i = 0; renderAssumptions && i < result.assumptions.length; ++i) {
+					var assumption = result.assumptions[i];
+					if ((renderSuccessResults && assumption.result) || (renderFailedResults && !assumption.result)) {
+						var columns = [
+							createDomElement("td", [assumption.result ? "True" : "False"], {class: columnClasses[0]}),
+							createDomElement("td", ["Assumption"], {class: columnClasses[1]}),
+							createDomElement("td", [fileName], {class: columnClasses[2]}),
+							createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
+							createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+							createDomElement("td", ["[" + assumption.type + "] " + (assumption.description != null ? assumption.description : "")], {class: columnClasses[5]})
+						];
+						createRow(rows, columns);
+					}
+				}
+			}
+
+			// Optionally add the error that caused the test to the test to fail.
+
+			function renderResultError(rows, fileName, columnClasses, result, renderFailedResults, renderErrors) {
+				if (renderErrors && result.error != null && renderFailedResults) {
+					var columns = [
+						createDomElement("td", ["Error"], {class: columnClasses[0]}),
+						createDomElement("td", ["Error"], {class: columnClasses[1]}),
+						createDomElement("td", [fileName], {class: columnClasses[2]}),
+						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
+						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+						createDomElement("td", [result.error.message], {class: columnClasses[5]})
+					];
+					createRow(rows, columns);
+				}
+			}
+
+			// Optionally add the messages generated during the test.
+
+			function renderResultMessages(rows, fileName, columnClasses, result, renderSuccessResults, renderMessages) {
+				for (var i = 0; renderMessages && renderSuccessResults && i < result.messages.length; ++i) {
+					var columns = [
+						createDomElement("td", [""], {class: columnClasses[0]}),
+						createDomElement("td", ["Message"], {class: columnClasses[1]}),
+						createDomElement("td", [fileName], {class: columnClasses[2]}),
+						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
+						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+						createDomElement("td", [result.messages[i]], {class: columnClasses[5]})
+					];
+					createRow(rows, columns);
+				}
+			}
+
+			function renderSummary() {
+				var summary = __TestPilot.getSummary();
+				var columnNames = ["category", "total", "passed", "failed"];
+				var rows = [];
+				rows.push(createDomElement("tr", renderSummaryRowColumns("test classes", summary.getUnitTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("before class operations", summary.getBeforeClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("after class operations", summary.getAfterClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("before operations", summary.getBeforeSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("after operations", summary.getAfterSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("test operations", summary.getTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("ignored operations", summary.getIgnoreSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("assertions", summary.getAssertionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("assumptions", summary.getAssumptionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("messages", summary.getMessageSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				renderTable("summaryData", columnNames, rows);
+			}
+
+			function renderSummaryRowColumns(category, summaryItem, columnClasses) {
+				var columns = [
+					createDomElement("td", [category], {class: columnClasses[0]}),
+					createDomElement("td", [summaryItem.total], {class: columnClasses[1]}),
+					createDomElement("td", [summaryItem.passed], {class: columnClasses[2]}),
+					createDomElement("td", [summaryItem.failed], {class: columnClasses[3]})
+				];
+				return (columns);
+			}
+
+			function renderTable(elementId, columnNames, bodyRows) {
+				removeChildNodes(elementId);
+				var columns = [];
+				for (var i = 0; i < columnNames.length; ++i) {
+					columns.push(createDomElement("th", [columnNames[i]], {class: columnNames[i]}));
+				}
+				var headerRow = createDomElement("tr", columns);
+				var tableHeader = createDomElement("thead", [headerRow]);
+				var tableBody = createDomElement("tbody", bodyRows);
+				var table = createDomElement("table", [tableHeader, tableBody]);
+				document.getElementById(elementId).appendChild(table);
+			}
+
+			function renderUnitTest(rows, fileName, columnClasses, results,  renderSuccessResults, renderFailedResults) {
+				var successful = true;
+				for (var i = 0; i < results.length; ++i) {
+					successful &= results[i].error == null;
+				}
+				if ((renderSuccessResults && successful) || (renderFailedResults && !successful)) {
+					var columns = [
+						createDomElement("td", [successful ? "Success" : "Failed"], {class: columnClasses[0]}),
+						createDomElement("td", ["Unit Test"], {class: columnClasses[1]}),
+						createDomElement("td", [fileName], {class: columnClasses[2]}),
+						createDomElement("td", [results[0].unitTestName], {class: columnClasses[3]}),
+						createDomElement("td", [""], {class: columnClasses[4]}),
+						createDomElement("td", [results[0].unitTestDescription != null ? results[0].unitTestDescription : ""], {class: columnClasses[5]})
+					];
+					createRow(rows, columns);
+				}
+			}
+
+			function setOptions() {
+				try {
+					var options = ["renderSuccessResults", "renderFailedResults", "renderMessages", "renderAssumptions", "renderAssertions", "renderErrors"];
+					var parameters = document.URL.replace(/^.*(\?)/, "").split("&");
+					for (var i = 0; i < parameters.length; ++i) {
+						var nameValue = parameters[i].split("=");
+
+						if (nameValue[0] == "testPilotFrameworkPrefix") {
+							TestPilotFrameworkPrefix = nameValue[1];
+							prefix = TestPilotFrameworkPrefix;
+							continue;
+						}
+
+						if (nameValue[0].toLowerCase() == "url") {
+							fileList.push({
+								verb: "GET",
+								name: nameValue[1]
+							});
+							continue;
+						}
+
+						for (var j = 0; j < options.length; ++j) {
+							if (options[j] == nameValue[0]) {
+								document.getElementById(options[j] + "Option").className = nameValue[1] == "true" ? "enabled" : "disabled";
+							}
+						}
+					}
+
+					if (fileList.length > 0) {
+						loadFiles(fileList);
+					}
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			function testPilotDragOverEventHandler(event) {
+				try {
+					event.stopPropagation();
+					event.preventDefault();
+					event.dataTransfer.dropEffect = "copy";
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			function testPilotDropEventHandler(event) {
+				try {
+					event.stopPropagation();
+					event.preventDefault();
+					var files = event.dataTransfer.files;
+					for (var i = 0; i < files.length; ++i) {
+						fileList.push(files[i]);
+					}
+					loadFiles(files);
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+
+			function testPilotLoadEventHandler(event) {
+				try {
+					fileList = [];
+					window.addEventListener("dragover", testPilotDragOverEventHandler, false);
+					window.addEventListener("drop", testPilotDropEventHandler, false);
+					document.getElementById("reloadFilesOption").addEventListener("click", reloadFilesOptionClickEventHandler, false);
+
+					var elementIds = ["renderSuccessResultsOption", "renderFailedResultsOption", "renderMessagesOption", "renderAssumptionsOption", "renderAssertionsOption", "renderErrorsOption"];
+					for (var i in elementIds) {
+						var element = document.getElementById(elementIds[i]);
+						element.addEventListener("click", displayOptionsClickEventHandler, false);
+						element.className = "enabled";
+					}
+					var subject = "testpilot.js Inquiry - " + document.URL + "," + navigator.userAgent;
+					document.getElementById("contact").href = "mailto:testpilot.js@summitstreet.biz?subject=" + subject;
+					setOptions();
+					renderSummary();
+				}
+				catch (e) {
+					renderError(e);
+				}
+			}
+		//]]>
+		</script>
+
+		<!--script type="text/javascript" src="/javascript/test1.js"></script>
+		<script type="text/javascript" src="/javascript/test2.js"></script>
+		<script type="text/javascript" src="/javascript/test3.js"></script>
+		<script type="text/javascript" src="/javascript/test4.js"></script>
+		<script type="text/javascript" src="/javascript/test5.js"></script>
+		<script type="text/javascript" src="/javascript/test6.js"></script-->
+
+		<div id="header">
+			<h1>TestPilot.js</h1>
+		</div>
+
+		<div id="documentation">
+			Welcome to TestPilot, an interactive JavaScript test framework.
+			<p/>
+			Load the code to be tested and TestPilot test classes by dropping
+			JavaScript files anywhere on the page.  If the files contain TestPilot
+			test classes, the test classes will be loaded and the tests will be
+			immediately invoked.  If the files contain application code, the files
+			will be loaded and will be accessible to TestPilot test classes.
+			<p/>
+			Load the code to be tested (e.g.: application code) first, then load
+			the TestPilot test classes.  Click the Reload option in the Details
+			section to reload both application code and TestPilot test classes.
+		</div>
+
+		<div id="summary">
+			<h1>Summary</h1>
+			<div id="summaryData">
+			</div>
+		</div>
+
+		<div id="details">
+			<div id="detailsMenu">
+				<h1>
+					<span>details</span>
+				</h1>
+				<ul>
+					<li id="reloadFilesOption">reload</li>
+					<li id="renderSuccessResultsOption">success</li>
+					<li id="renderFailedResultsOption">failed</li>
+					<li id="renderMessagesOption">messages</li>
+					<li id="renderAssumptionsOption">assumptions</li>
+					<li id="renderAssertionsOption">assertions</li>
+					<li id="renderErrorsOption">errors</li>
+				</ul>
+			</div>
+			<div id="detailData">
+			</div>
+		</div>
+
+		<div id="errors">
+			<h1>
+				<span>errors</span>
+			</h1>
+			<div id="errorData">
+			</div>
+		</div>
+
+		<div id="footer">
+			<ul>
+				<li><a href="Help.html">about</a></li>
+				<li><a id="contact">contact</a></li>
+			</ul>
+			<h1 id="copyright">&copy; 2015 David Padgett</h1>
+		</div>
+
+	</body>
+</html>

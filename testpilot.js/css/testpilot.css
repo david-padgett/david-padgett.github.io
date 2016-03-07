@@ -1,0 +1,98 @@
+/*
+	The MIT License (MIT)
+
+	Copyright (c) 2015 David Padgett/Summit Street, Inc.
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+/* testpilot.js/src/main/css/testpilot.css */
+
+h1, h2, h3 {font-size: small; font-weight: normal; margin: 0%; padding: 0%; text-transform: capitalize;}
+
+a, a:focus, a:link, a:hover, a:visited {background: inherit; color: inherit; outline: none; text-decoration: none;}
+a:hover {text-decoration: underline;}
+body {background: white; color: black; font-family: Verdana, Helvetica, Arial, sans-serif; font-size: x-small; height: auto; margin: 0%; padding: 0%; width: 100%;}
+div {border: none; height: auto; margin: 0%; padding: 0%; width: 100%;}
+
+div#header {background: inherit; color: inherit; height: auto; margin: 1.5% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+div#header h1 {background: inherit; border-bottom: black solid 1px; color: inherit; font-family: Courier New, sans-serif; font-size: large; font-weight: bold; width: 100%;}
+
+div#documentation {background: inherit; color: inherit; display: block; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+
+div#summary {background: inherit; color: inherit; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+div#summary h1 {background: inherit; border-bottom: black solid 1px; color: inherit; font-family: Courier New, sans-serif; font-size: medium; font-weight: bold; margin: 0% 0% 1em 0%; width: 100%;}
+
+div#summary table {background: inherit; border-collapse: collapse; color: inherit; font-family: Courier New, sans-serif; font-weight: normal; margin: 0%; padding: 0%; width: 100%;}
+div#summary thead {background: #f7f7f7; margin: 0%; padding: 0%;}
+div#summary tbody {margin: 1em 0% 1em 0%; padding: 0%;}
+
+div#summary tr {margin: 0%; padding: 0%;}
+div#summary tr.odd {background: #f7f7f7;}
+div#summary tr.even {background: inherit;}
+
+div#summary th {font-size: small; font-weight: bold; margin: 0%; padding: 0% .5em 0% 0%; text-align: left; text-transform: capitalize;}
+div#summary td {font-size: small; margin: 0%; padding: 0% .5em 0% 0%;}
+div#summary td.category {text-transform: capitalize; width: 55%;}
+div#summary td.total {width: 15%;}
+div#summary td.passed {width: 15%;}
+div#summary td.failed {width: 15%;}
+
+div#details {background: inherit; color: inherit; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+div#detailsMenu {border-bottom: black solid 1px; width: 100%;}
+div#details h1 {background: inherit; border-bottom: black solid 1px; color: inherit; display: inline; font-family: Courier New, sans-serif; font-size: medium; font-weight: bold;}
+div#details ul {display: inline;}
+
+div#details ul {border: none; display: inline; font-size: x-small; margin: 0% 0% 0% 1em; padding: 0%;}
+div#details li {background: inherit; border: none; color: inherit; display: inline; font-size: small; font-weight: normal; list-style: none; margin: 0%; padding: 0% 1em 0% 0%;}
+div#details li:hover {cursor: pointer;}
+div#details li.enabled {text-decoration: none;}
+div#details li.disabled {text-decoration: line-through;}
+
+div#detailData {background: inherit; color: inherit; margin: 0%; padding: 0%; width: 100%;}
+
+div#detailData table {background: inherit; border-collapse: collapse; color: inherit; font-family: Courier New, sans-serif; font-weight: normal; margin: 1em 0% 1em 0%; padding: 0% 0% 0% 0%; width: 100%;}
+div#detailData thead {background: #f7f7f7; margin: 0%; padding: 1em 0% 2em 0%;}
+div#detailData thead tr {margin: 1em 0% 1em 0%; padding: 0% 0% 0% 0%;}
+div#detailData tbody {margin: 1em 0% 1em 0%; padding: 0% 0% 0% 0%;}
+
+div#detailData tr {}
+div#detailData tr.odd {background: #f7f7f7;}
+div#detailData tr.even {background: inherit;}
+
+div#detailData th {border: none; font-size: small; font-weight: bold; margin: 0%; padding: 0% .5em 0% 0%; text-align: left; text-transform: capitalize;}
+div#detailData td {border: none; font-size: small; margin: 0%; padding: 0% .5em 0% 0%;}
+div#detailData td.file {max-width: 10%; width: 10%;}
+div#detailData td.status {width: 7.5%;}
+div#detailData td.category {width: 7.5%;}
+div#detailData td.class {width: 10%;}
+div#detailData td.operation {width: 15%;}
+div#detailData td.description {width: 50%;}
+
+div#detailData td.description pre {background: inherit; color: inherit; font-family: Courier New, sans-serif; font-size: x-small; font-weight: normal;}
+
+div#errors {background: inherit; color: inherit; font-family: Courier New, sans-serif; font-size: medium; font-weight: normal; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+div#errors h1 {background: inherit; border-bottom: black solid 1px; color: inherit; font-family: Courier New, sans-serif; font-size: medium; font-weight: bold; width: 100%;}
+div#errors pre {}
+
+div#footer {background: #f7f7f7; color: inherit; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+
+div#footer ul {background: inherit; color: inherit; float: left; font-family: Trebuchet MS, sans-serif; font-size: x-small; font-weight: normal; margin: 0% 0% 1em 0%; padding: 0%; width: 75%;}
+div#footer ul li {display: inline; padding-right: 1em; list-style: none;}
+div#footer h1#copyright {background: inherit; color: inherit; float: right; font-family: Trebuchet MS, sans-serif; font-size: x-small; font-weight: normal; margin: 0% 0% 1em 0%; padding: 0%; text-align: right; width: 25%;}
