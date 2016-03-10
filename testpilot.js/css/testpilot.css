@@ -35,6 +35,13 @@ div#header {background: inherit; color: inherit; height: auto; margin: 1.5% 1.5%
 div#header h1 {background: inherit; border-bottom: black solid 1px; color: inherit; font-family: Courier New, sans-serif; font-size: large; font-weight: bold; width: 100%;}
 
 div#documentation {background: inherit; color: inherit; display: block; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
+div#documentation :hover {cursor: pointer;}
+div#documentation table.visible {display: block;}
+div#documentation h1 {background: inherit; color: inherit; font-family: inherit; font-size: inherit; font-weight: bold; margin: 0% 0% 1em 0%; width: 100%;}
+div#documentation table {background: white; border: black solid 1px; display: none; margin: 0% 1.5% 1.5% 1.5%; padding: 1em; position: absolute; width: 92.5%;}
+div#documentation table tr {margin: 0% 0% 1em 0%; width: 100%;}
+div#documentation table tr td {margin: 0%; padding: 0% 0.5em 0% 0.5em; vertical-align: top; width: 25%;}
+div#documentation table tr td h1 {font-weight: normal; text-decoration: underline;}
 
 div#summary {background: inherit; color: inherit; margin: 0% 1.5% 1.5% 1.5%; padding: 0%; width: 97%;}
 div#summary h1 {background: inherit; border-bottom: black solid 1px; color: inherit; font-family: Courier New, sans-serif; font-size: medium; font-weight: bold; margin: 0% 0% 1em 0%; width: 100%;}
@@ -64,6 +71,8 @@ div#details li {background: inherit; border: none; color: inherit; display: inli
 div#details li:hover {cursor: pointer;}
 div#details li.enabled {text-decoration: none;}
 div#details li.disabled {text-decoration: line-through;}
+div#details li#loadFilesOption {display: none;}
+
 
 div#detailData {background: inherit; color: inherit; margin: 0%; padding: 0%; width: 100%;}
 

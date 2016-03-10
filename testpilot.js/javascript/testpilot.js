@@ -22,7 +22,6 @@
  * SOFTWARE.
  */
 
-// testpilot.js/src/main/javascript/testpilot.js
 
 var __TestPilot = {
 
@@ -36,41 +35,33 @@ var __TestPilot = {
 
 	AnnotationTypes: {
 
-		// $TypeAnnotation();
 		TestPilotAnnotation: function TestPilotAnnotation() {
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		AfterAnnotation: function After(description) {
 			this.description = description;
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		AfterClassAnnotation: function AfterClass(description) {
 			this.description = description;
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		BeforeAnnotation: function Before(description) {
 			this.description = description;
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		BeforeClassAnnotation: function BeforeClass(description) {
 			this.description = description;
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		IgnoreAnnotation: function Ignore(description) {
 			this.description = description;
 		},
 
-		// $MethodAnnotation(); $TestPilotAnnotation();
 		TestAnnotation: function Test(description) {
 			this.description = description;
 		},
 
-		// $TypeAnnotation(); $ObjectAnnotation(); $TestPilotAnnotation();
 		UnitTestAnnotation: function UnitTest(description) {
 			this.description = description;
 		}
@@ -103,47 +94,47 @@ var __TestPilot = {
 		var members = [__TestPilot.AnnotationTypes.UnitTestAnnotation.name, __TestPilot.AnnotationTypes.BeforeAnnotation.name, __TestPilot.AnnotationTypes.BeforeClassAnnotation.name, __TestPilot.AnnotationTypes.AfterAnnotation.name, __TestPilot.AnnotationTypes.AfterClassAnnotation.name, __TestPilot.AnnotationTypes.TestAnnotation.name, __TestPilot.AnnotationTypes.IgnoreAnnotation.name, __TestPilot.Assertions.assert.name, __TestPilot.Assumptions.assume.name, __TestPilot.message.name];
 		for (var i = 0; i < members.length; ++i) {
 			this[members[i]] = new __TestPilot.SummaryValue(0, 0, 0);
-		}
+		};
 
 		this.getUnitTestSummary = function() {
 			return (this[members[0]]);
-		}
+		};
 
 		this.getBeforeSummary = function() {
 			return (this[members[1]]);
-		}
+		};
 
 		this.getBeforeClassSummary = function() {
 			return (this[members[2]]);
-		}
+		};
 
 		this.getAfterSummary = function() {
 			return (this[members[3]]);
-		}
+		};
 
 		this.getAfterClassSummary = function() {
 			return (this[members[4]]);
-		}
+		};
 
 		this.getTestSummary = function() {
 			return (this[members[5]]);
-		}
+		};
 
 		this.getIgnoreSummary = function() {
 			return (this[members[6]]);
-		}
+		};
 
 		this.getAssertionSummary = function() {
 			return (this[members[7]]);
-		}
+		};
 
 		this.getAssumptionSummary = function() {
 			return (this[members[8]]);
-		}
+		};
 
 		this.getMessageSummary = function() {
 			return (this[members[9]]);
-		}
+		};
 
 	},
 
@@ -156,7 +147,7 @@ var __TestPilot = {
 			this.total++;
 			this.passed += successful == true ? 1 : 0;
 			this.failed += successful == false ? 1 : 0;
-		}
+		};
 	},
 
 	Assertions: {
@@ -290,39 +281,29 @@ var __TestPilot = {
 		__TestPilot.NAMESPACE[name] = value;
 	},
 
-	// Adds a new Result ot the specified unit test.
 
 	addResult: function(unitTest, operation) {
 
-		// Create a new result descriptor, then add it to the results
-		// descriptor attached to the current test object.
 
 		var result = new __TestPilot.Result(operation);
 		__TestPilot.getFrameworkState(unitTest).results.push(result);
 		return (result);
 	},
 
-	// Retrieves the current Result object.
 
 	getCurrentResult: function() {
 		var results = __TestPilot.getFrameworkState(__TestPilot.UNIT_TEST).results;
 		return (results[results.length - 1]);
 	},
 
-	// Retrieve the state attached to the specified construct or null if no
-	// construct was provided.
 
 	getFrameworkState: function(object) {
 		return (object == null ? null : object[__TestPilot.FRAMEWORK_PREFIX]);
 	},
 
-	// Retrieves the set of operations defined in the specified unit test that
-	// match the specified criteria.
 
 	getOperations: function(category, unitTest) {
 
-		// Create a set of all operations defined in the test class that
-		// that matches the specified category.
 
 		var result = [];
 		for (var name in unitTest) {
@@ -335,15 +316,88 @@ var __TestPilot = {
 		return (result);
 	},
 
-	// Retrieves detailed unit test results for all unit tests or for only those
-	// unit tests specified in the argument list.
+	getReport: function() {
+		var blankStr =  "                                                  ";
+
+		var leftJustify = function(str, width) {
+			return ((str + blankStr).substr(0, width));
+		}
+
+		var rightJustify = function(str, width) {
+			str = blankStr + str;
+			return (str.substr(str.length - width));
+		}
+
+		var format = function(status, category, className, operationName, description) {
+			var status = leftJustify(status, 10);
+			var category = leftJustify(category, 15);
+			var className = leftJustify(className, 20);
+			var operationName = leftJustify(operationName, 35);
+			return (status + " " + category + " " + className + " " + operationName + " " + description + "\n");
+		}
+
+		var report = "TestPilot Summary\n\n";
+		var title = leftJustify("Category", 15);
+		var total = leftJustify("Total", 10);
+		var passed = leftJustify("Passed", 10);
+		var failed = leftJustify("Failed", 10);
+		report += title + " " + total + " " + passed + " " + failed + "\n";
+		var summary = __TestPilot.getSummary();
+		for (var i in summary) {
+			if (summary[i].constructor == __TestPilot.SummaryValue) {
+				var title = leftJustify(i, 15);
+				var total = rightJustify(summary[i].total, 5);
+				var passed = rightJustify(summary[i].passed, 11);
+				var failed = rightJustify(summary[i].failed, 10);
+				report += title + " " + total + " " + passed + " " + failed + "\n";
+			}
+		}
+
+		report += "\nTestPilot Details\n\n";
+		report += format("Status", "Category", "Class", "Operation", "Description");
+		var successful = true;
+		var unitTestName = null;
+		var results = __TestPilot.getResults();
+		for (var i = 0; i < results.length; ++i) {
+			var result = results[i];
+			successful &= result.passed;
+
+			if (unitTestName != null && unitTestName != result.unitTestName) {
+				unitTestName = result.unitTestName;
+				report += format(successful ? "Success" : "Failed", "Unit Test", results[i - 1].unitTestName, " ", results[i - 1].unitTestDescription);
+				successful = true;
+			}
+			unitTestName = result.unitTestName;
+			report += format(result.passed ? "Success" : "Failed", result.category, result.unitTestName, result.operationName, "");
+			for (var j = 0; j < result.messages.length; ++j) {
+				report += format("", "Message", result.unitTestName, result.operationName, result.messages[j]);
+			}
+			for (var j = 0; j < result.assumptions.length; ++j) {
+				var assumption = result.assumptions[j];
+				successful &= assumption.assumption;
+				report += format(assumption.assumption ? "True" : "False", "Assumption", result.unitTestName, result.operationName, "[" + assumption.type + "] " + assumption.description);
+			}
+			for (var j = 0; j < result.assertions.length; ++j) {
+				var assertion = result.assertions[j];
+				successful &= assertion.assumption;
+				report += format(assertion.result ? "True" : "False", "Assertion", result.unitTestName, result.operationName, "[" + assertion.type + "] " + assertion.description);
+			}
+			if (result.error != null) {
+				var cause = result.error.cause;
+				successful &= cause.result;
+				report += format("Error", "Error", result.unitTestName, result.operationName, cause.type + ": " + cause.description);
+			}
+		}
+		var i = results.length;
+		report += format(successful ? "Success" : "Failed", "Unit Test", results[i - 1].unitTestName, "", results[i - 1].unitTestDescription);
+		return (report);
+	},
+
 
 	getResults: function() {
 		var results = [];
 		for (var i = 0; i < __TestPilot.UNIT_TESTS.length; ++i) {
 
-			// If specific test classes have been requested, filter the result
-			// based on the list of types present in the paramater list.
 
 			var unitTest = __TestPilot.UNIT_TESTS[i];
 			if (arguments.length == 0) {
@@ -362,7 +416,6 @@ var __TestPilot = {
 		return (results);
 	},
 
-	// Retrieves a summary of unit test results.
 
 	getSummary: function() {
 		if (__TestPilot.SUMMARY == null) {
@@ -385,7 +438,6 @@ var __TestPilot = {
 		}
 	},
 
-	// Initializes the specified construct.
 
 	initializeFrameworkState: function(object) {
 		if (object != null && object[__TestPilot.FRAMEWORK_PREFIX] == null) {
@@ -395,7 +447,6 @@ var __TestPilot = {
 		}
 	},
 
-	// Initialize the TestPilot framework.
 
 	initializeTestPilotFramework: function() {
 		__TestPilot.UNIT_TESTS = [];
@@ -403,7 +454,6 @@ var __TestPilot = {
 		__TestPilot.SUMMARY = null;
 		__Annotations.setNamespace(__TestPilot.NAMESPACE);
 		__Annotations.setNamespacePrefix(__TestPilot.NAMESPACE_PREFIX);
-//		__Annotations.initializeAnnotationsFramework();
 		__TestPilot.initializeAliases();
 		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.TestPilotAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.TypeAnnotation));
 		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.AfterAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
@@ -415,23 +465,18 @@ var __TestPilot = {
 		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.UnitTestAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.TypeAnnotation, __Annotations.AnnotationTypes.ObjectAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
 	},
 
-	// Initialize all defined unit tests.
 
 	initializeUnitTests: function() {
 		var unitTestTypes = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
 		for (var i = 0; i < unitTestTypes.length; ++i) {
 
-			// Initialize the test class, then create a new instance of it.
 
 			var unitTestType = unitTestTypes[i];
-//			var unitTestDescription = __Annotations.getFrameworkState(unitTestType).annotations[0].description;
 			var unitTestDescription =__Annotations.getAnnotations(unitTestType)[0].description;
 			__TestPilot.initializeFrameworkState(unitTestType);
 			var unitTest = unitTestType.constructor == Function ? new unitTestType() : unitTestType;
 			__TestPilot.UNIT_TESTS.push(unitTest);
 
-			// Locate the next operation without an operation descriptor, then
-			// attach the current operation descriptor to the operation.
 
 			for (var operationName in unitTest) {
 				var operation = unitTest[operationName];
@@ -447,12 +492,9 @@ var __TestPilot = {
 		return (unitTestTypes);
 	},
 
-	// Invokes the specified operation within the specified unit test.
 
 	invokeOperation: function(unitTest, operation) {
 
-		// Create a new result, add it to the set of Result objects associated
-		// with the operation, then invoke the operation.
 
 		var result = __TestPilot.addResult(unitTest, operation);
 		try {
@@ -460,10 +502,9 @@ var __TestPilot = {
 		}
 		catch (e) {
 
-			// Store exceptions in the result.
 
 			result.error = e;
-			result.passed = !e.cause.isFatalError();
+			result.passed = e.cause != null ? !e.cause.isFatalError() : false;
 		}
 		finally {
 			__TestPilot.updateSummary(__TestPilot.getFrameworkState(operation).category, result.passed);
@@ -471,7 +512,6 @@ var __TestPilot = {
 		return (result == null ? false : result.passed);
 	},
 
-	// Invoke all operations in the unit test that match the specified category.
 
 	invokeOperations: function(category, unitTest) {
 		var passed = true;
@@ -482,7 +522,6 @@ var __TestPilot = {
 		return (passed);
 	},
 
-	// Adds a message to the current test result.
 
 	message: function Message(value) {
 		__TestPilot.getCurrentResult().messages.push(value);
@@ -493,38 +532,29 @@ var __TestPilot = {
 		delete __TestPilot.NAMESPACE[name];
 	},
 
-	// Remove function aliases and annotations from the global NAMESPACE and
-	// remove framework state from all managed object.
 
 	removeTestPilotFramework: function() {
 
-		// Delete all function aliases from the global namespace.
 
 		for (var i = 0; i < __TestPilot.ALIASED_FUNCTIONS.length; ++i) {
 			__TestPilot.removeFromNamespace(__TestPilot.ALIASED_FUNCTIONS[i]);
 		}
 
-		// Delete all defined annotations and remove convenience functions from
-		// the global namespace.
 
 		__Annotations.removeAnnotationsFramework();
 	},
 
-	// Run all registered unit tests.
 
 	runUnitTests: function() {
 		__TestPilot.getSummary();
 		__TestPilot.initializeUnitTests();
 
-		// For each unit test, execute all registered test functions.
 
 		for (var i = 0; i < __TestPilot.UNIT_TESTS.length; ++i) {
 			var unitTest = __TestPilot.UNIT_TESTS[i];
 			__TestPilot.initializeFrameworkState(unitTest);
 			__TestPilot.UNIT_TEST = unitTest;
 
-			// Invoke the before class, before, test, after, and after class
-			// operations defined in the test class.
 
 			var passed = __TestPilot.invokeOperations(__TestPilot.AnnotationTypes.BeforeClassAnnotation.name, unitTest);
 			var operations = __TestPilot.getOperations(__TestPilot.AnnotationTypes.TestAnnotation.name, unitTest);
@@ -540,9 +570,6 @@ var __TestPilot = {
 		__TestPilot.UNIT_TEST = null;
 	},
 
-	// Sets the prefix, which the unit test framework uses to attach state to
-	// types, objects, and methods (e.g.: constructs), to the specified value.
-	// The default prefix is "__Annotations".
 
 	setFrameworkPrefix: function(frameworkPrefix) {
 		if (frameworkPrefix != null) {
@@ -552,9 +579,6 @@ var __TestPilot = {
 		}
 	},
 
-	// Sets the namespace, which is used to publish/make easily available
-	// annotations, annotated types, and methods, to the specified value.  The
-	// default namespace is "this" (e.g.: window).
 
 	setNamespace: function(namespace) {
 		if (namespace != null) {
@@ -564,9 +588,6 @@ var __TestPilot = {
 		}
 	},
 
-	// Sets the namespace prefix, which prefixes all globally defined annotation
-	// types and methods, to the specified value.  The default namespace
-	// prefix is "$".
 
 	setNamespacePrefix: function(namespacePrefix) {
 		if (namespacePrefix != null) {
@@ -576,8 +597,6 @@ var __TestPilot = {
 		}
 	},
 
-	// Updates the specified summary category, specifically the total, passed,
-	// and failed information stored in the summary value.
 
 	updateSummary: function(category, result) {
 		__TestPilot.SUMMARY[category].update(result);

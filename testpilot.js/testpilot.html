@@ -44,6 +44,7 @@
 			//<![CDATA[
 			var frameworkState = __TestPilot.FRAMEWORK_PREFIX;
 			var fileList = [];
+			var totalFilesAdded = 0;
 			document.getElementById("testPilot").onload = testPilotLoadEventHandler;
 
 			function createDomElement(tagName, childNodes, attributes) {
@@ -86,29 +87,32 @@
 
 			function execute() {
 				try {
-					var executeTests = true;
-					for (var j = 0; executeTests && j < fileList.length; ++j) {
-						executeTests = fileList[j][frameworkState] != null && fileList[j][frameworkState].processed;
-					}
-					if (executeTests) {
-						__TestPilot.runUnitTests();
-						renderSummary();
-						renderDetailData();
-					}
+					__TestPilot.runUnitTests();
+					renderSummary();
+					renderDetailData();
 				}
 				catch (e) {
 					renderError(e);
 				}
 			}
 
-			function loadFiles(files) {
-				for (var i = 0; i < files.length; ++i) {
-					var file = files[i];
+			function documentationMouseOverEventHandler(event) {
+				document.getElementById("instructions").className = "visible";
+			}
+
+			function documentationMouseOutEventHandler(event) {
+				document.getElementById("instructions").className = "";
+			}
+
+			function loadFiles() {
+				removeChildNodes("errorData");
+				for (var i = 0; i < fileList.length; ++i) {
+					var file = fileList[i];
 
 					// Initialize TestPilot state attached to the File object.
 
 					file[frameworkState] = {
-						processed: false,
+						contents: null,
 						registeredTests: [],
 						error: null
 					};
@@ -127,61 +131,63 @@
 				fileReader.onload = (function(file) {
 					return (function(event) {
 						processFile(file, event.target.result);
-						execute();
 					});
 				})(file);
 				fileReader.readAsText(file);
+			}
+
+			function loadFilesTimer() {
+				var sourceCode = "";
+				for (var i = 0; i < fileList.length; ++i) {
+					if (fileList[i][frameworkState].contents == null) {
+						setTimeout(loadFilesTimer, 100);
+						return;
+					}
+					sourceCode += fileList[i][frameworkState].contents;
+				}
+				document.getElementById("loadFilesOption").onclick();
 			}
 
 			function loadUrlResource(file) {
 				var xmlHttpRequest = new XMLHttpRequest();
 				xmlHttpRequest.open("GET", file.name, false);
 				xmlHttpRequest.send("");
-				processFile(file, xmlHttpRequest.responseText);
-				execute();
+				processFile(file, event.target.result);
 			}
 
 			function processFile(file, contents) {
+				file[frameworkState].contents = contents != null ? contents : "";
+				file[frameworkState].registeredUnitTests = [];
+				file[frameworkState].error = null;
+			}
 
-				// Initialize TestPilot state attached to the File object.
-
-				file[frameworkState].processed = true;
-
-				// Evaluate the contents of the file.
-
+			function processUnitTests(file) {
 				try {
-					var previousTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
-					eval(contents);
-					var currentTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
-					var registeredTests = [];
-					for (var i = 0; i < currentTestClasses.length; ++i) {
-						var notFound = true;
-						for (var j = 0; notFound && j < previousTestClasses.length; ++j) {
-							notFound = currentTestClasses[i] != previousTestClasses[j];
-						}
-						if (notFound) {
-							registeredTests.push(currentTestClasses[i]);
-						}
-					}
-
-					// If the file contents TestPilot code, add the list of test
-					// classes to the TestPilot state attached to the File object.
-
-					if (registeredTests != null) {
-						file[frameworkState].registeredTests = registeredTests;
+					var unitTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
+					for (var i = 0; i < unitTestClasses.length; ++i) {
+						var unitTest = unitTestClasses[i];
+						if (unitTest[frameworkState] == null) {
+							file[frameworkState].registeredUnitTests.push(unitTest);
+							__TestPilot.initializeFrameworkState(unitTest);
+							__TestPilot.getFrameworkState(unitTest).file = file;
+ 						}
 					}
 				}
 				catch (e) {
 					file[frameworkState].error = e;
+					console.log(e.stack);
 					console.log("TestPilot: Unable to load " + file.name + " - " + e);
 				}
 			}
 
-			function reloadFilesOptionClickEventHandler() {
+			function reloadFilesOptionClickEventHandler(event) {
 				try {
-					__TestPilot.initializeTestPilot();
+					event.stopPropagation();
+					event.preventDefault();
+					__TestPilot.initializeTestPilotFramework();
 					renderSummary();
-					loadFiles(fileList);
+					loadFiles();
+					loadFilesTimer();
 				}
 				catch (e) {
 					renderError(e);
@@ -215,13 +221,13 @@
 
 				for (var i = 0; i < fileList.length; ++i) {
 					var file = fileList[i];
-					if (file[frameworkState].registeredTests.length == 0) {
+					if (file[frameworkState].registeredUnitTests.length == 0) {
 						if ((renderSuccessResults && file[frameworkState].error == null) || (renderFailedResults && file[frameworkState].error != null)) {
 							renderJavaScriptFileDetail(rows, file, columnNames);
 						}
 					}
 					else {
-						var results = __TestPilot.getResults(file[frameworkState].registeredTests);
+						var results = __TestPilot.getResults(file[frameworkState].registeredUnitTests);
 						renderUnitTest(rows, file.name, columnNames, results, renderSuccessResults, renderFailedResults);
 						for (var j = 0; j < results.length; ++j) {
 							renderResult(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults);
@@ -237,7 +243,6 @@
 			}
 
 			function renderError(error) {
-				removeChildNodes("errorData");
 				document.getElementById("errorData").appendChild(createDomElement("pre", error.message + "\n" + error.stack));
 			}
 
@@ -427,12 +432,16 @@
 					}
 
 					if (fileList.length > 0) {
-						loadFiles(fileList);
+						loadFiles();
 					}
 				}
 				catch (e) {
 					renderError(e);
 				}
+			}
+
+			function sourceCodeChangedEventHandler(event) {
+				execute();
 			}
 
 			function testPilotDragOverEventHandler(event) {
@@ -450,11 +459,12 @@
 				try {
 					event.stopPropagation();
 					event.preventDefault();
-					var files = event.dataTransfer.files;
-					for (var i = 0; i < files.length; ++i) {
-						fileList.push(files[i]);
+					for (var i = 0; i < event.dataTransfer.files.length; ++i) {
+						fileList.push(event.dataTransfer.files[i]);
 					}
-					loadFiles(files);
+					totalFilesAdded = fileList.length;
+					loadFiles();
+					loadFilesTimer();
 				}
 				catch (e) {
 					renderError(e);
@@ -464,10 +474,11 @@
 			function testPilotLoadEventHandler(event) {
 				try {
 					fileList = [];
-					window.addEventListener("dragover", testPilotDragOverEventHandler, false);
-					window.addEventListener("drop", testPilotDropEventHandler, false);
+					document.getElementById("documentation").addEventListener("mouseover", documentationMouseOverEventHandler, false);
+					document.getElementById("documentation").addEventListener("mouseout", documentationMouseOutEventHandler, false);
+					document.addEventListener("dragover", testPilotDragOverEventHandler, false);
+					document.addEventListener("drop", testPilotDropEventHandler, false);
 					document.getElementById("reloadFilesOption").addEventListener("click", reloadFilesOptionClickEventHandler, false);
-
 					var elementIds = ["renderSuccessResultsOption", "renderFailedResultsOption", "renderMessagesOption", "renderAssumptionsOption", "renderAssertionsOption", "renderErrorsOption"];
 					for (var i in elementIds) {
 						var element = document.getElementById(elementIds[i]);
@@ -486,29 +497,51 @@
 		//]]>
 		</script>
 
-		<!--script type="text/javascript" src="/javascript/test1.js"></script>
-		<script type="text/javascript" src="/javascript/test2.js"></script>
-		<script type="text/javascript" src="/javascript/test3.js"></script>
-		<script type="text/javascript" src="/javascript/test4.js"></script>
-		<script type="text/javascript" src="/javascript/test5.js"></script>
-		<script type="text/javascript" src="/javascript/test6.js"></script-->
-
 		<div id="header">
-			<h1>TestPilot.js</h1>
+			<h1>TestPilot.js - an annotations-based unit test framework</h1>
 		</div>
 
 		<div id="documentation">
-			Welcome to TestPilot, an interactive JavaScript test framework.
 			<p/>
-			Load the code to be tested and TestPilot test classes by dropping
-			JavaScript files anywhere on the page.  If the files contain TestPilot
-			test classes, the test classes will be loaded and the tests will be
-			immediately invoked.  If the files contain application code, the files
-			will be loaded and will be accessible to TestPilot test classes.
-			<p/>
-			Load the code to be tested (e.g.: application code) first, then load
-			the TestPilot test classes.  Click the Reload option in the Details
-			section to reload both application code and TestPilot test classes.
+			<h1>Instructions...</h1>
+			<table id="instructions">
+				<tbody>
+					<tr>
+						<td><h1>Step 1 - add the code to be tested</h1></td>
+						<td><h1>Step 2 - add TestPilot unit tests</h1></td>
+						<td><h1>Step 3 - review test results</h1></td>
+						<td><h1>Step 4 - debug your code, reload the files</h1></td>
+					</tr>
+					<tr>
+						<td>
+							Drag/drop files containing the JavaScript source code to be
+							tested onto the UI.  JavaScript files with no external
+							dependencies should be added first, JavaScript files
+							containing external dependencies should be added after all
+							pre-requisites have been added.
+						</td>
+						<td>
+							Drag/drop files containing JavaScript/TestPilot unit test
+							classes onto the UI.  The TestPilot UI will immediately
+							perform the unit test, the results will be reflected in the
+							Summary and Details sections of the UI.
+						</td>
+						<td>
+							Use the filters - success, failed, messages, assumptions,
+							assertions, and errors, which are located at the top of the
+							Details section - to include or exclude test categories
+							and unit test results.
+						</td>
+						<td>
+							For those unit tests that didn't pass, debug/fix the code
+							being tested and/or the TestPilot unit test classes, then
+							click 'reload' located on at the top of the Details
+							section.
+						</td>
+					</tr>
+
+				</tbody>
+			</table>
 		</div>
 
 		<div id="summary">
@@ -523,6 +556,8 @@
 					<span>details</span>
 				</h1>
 				<ul>
+					<!-- The loadFilesOption onclick event handler forces code to be loaded in the global namespace. -->
+					<li id="loadFilesOption" onclick="for (var i = 0; i < fileList.length; ++i) {try {var file = fileList[i]; eval(file[frameworkState].contents); processUnitTests(file);} catch (e) {file[frameworkState].error = e; renderError(e);}}; execute();"></li>
 					<li id="reloadFilesOption">reload</li>
 					<li id="renderSuccessResultsOption">success</li>
 					<li id="renderFailedResultsOption">failed</li>
@@ -546,7 +581,7 @@
 
 		<div id="footer">
 			<ul>
-				<li><a href="Help.html">about</a></li>
+				<li><a href="about.html">about</a></li>
 				<li><a id="contact">contact</a></li>
 			</ul>
 			<h1 id="copyright">&copy; 2015 David Padgett</h1>
