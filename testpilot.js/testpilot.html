@@ -42,10 +42,6 @@
 
 		<script type="text/javascript">
 			//<![CDATA[
-			var frameworkState = __TestPilot.FRAMEWORK_PREFIX;
-			var fileList = [];
-			var totalFilesAdded = 0;
-			document.getElementById("testPilot").onload = testPilotLoadEventHandler;
 
 			function createDomElement(tagName, childNodes, attributes) {
 				var element = document.createElement(tagName);
@@ -85,9 +81,17 @@
 			// Execute all unit tests if all files have been loaded and evaluated.
 			// If this is the case, run the unit tests and display the results.
 
+			function documentationMouseOverEventHandler(event) {
+				document.getElementById("instructions").className = "visible";
+			}
+
+			function documentationMouseOutEventHandler(event) {
+				document.getElementById("instructions").className = "";
+			}
+
 			function execute() {
 				try {
-					__TestPilot.runUnitTests();
+					unitTests = testPilot.runUnitTests();
 					renderSummary();
 					renderDetailData();
 				}
@@ -96,12 +100,24 @@
 				}
 			}
 
-			function documentationMouseOverEventHandler(event) {
-				document.getElementById("instructions").className = "visible";
+
+			function existingUnitTest(unitTest) {
+				for (var i = 0; i < fileList.length; ++i) {
+					if (fileContainsUnitTest(fileList[i], unitTest)) {
+						return (true);
+					}
+				}
+				return (false);
 			}
 
-			function documentationMouseOutEventHandler(event) {
-				document.getElementById("instructions").className = "";
+			function fileContainsUnitTest(file, unitTest) {
+				var registeredUnitTests = file[__FRAMEWORK_PREFIX].registeredUnitTests;
+				for (var i = 0; i < registeredUnitTests.length; ++i) {
+					if (registeredUnitTests[i] === unitTest || registeredUnitTests[i] === unitTest.constructor) {
+						return (true);
+					}
+				}
+				return (false);
 			}
 
 			function loadFiles() {
@@ -111,7 +127,7 @@
 
 					// Initialize TestPilot state attached to the File object.
 
-					file[frameworkState] = {
+					file[__FRAMEWORK_PREFIX] = {
 						contents: null,
 						registeredTests: [],
 						error: null
@@ -139,11 +155,11 @@
 			function loadFilesTimer() {
 				var sourceCode = "";
 				for (var i = 0; i < fileList.length; ++i) {
-					if (fileList[i][frameworkState].contents == null) {
+					if (fileList[i][__FRAMEWORK_PREFIX].contents == null) {
 						setTimeout(loadFilesTimer, 100);
 						return;
 					}
-					sourceCode += fileList[i][frameworkState].contents;
+					sourceCode += fileList[i][__FRAMEWORK_PREFIX].contents;
 				}
 				document.getElementById("loadFilesOption").onclick();
 			}
@@ -156,25 +172,23 @@
 			}
 
 			function processFile(file, contents) {
-				file[frameworkState].contents = contents != null ? contents : "";
-				file[frameworkState].registeredUnitTests = [];
-				file[frameworkState].error = null;
+				file[__FRAMEWORK_PREFIX].contents = contents != null ? contents : "";
+				file[__FRAMEWORK_PREFIX].registeredUnitTests = [];
+				file[__FRAMEWORK_PREFIX].error = null;
 			}
 
 			function processUnitTests(file) {
 				try {
-					var unitTestClasses = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
+					var unitTestClasses = testPilot.annotations.getAnnotatedConstructs(testPilot.annotationTypes.UnitTestAnnotation);
 					for (var i = 0; i < unitTestClasses.length; ++i) {
 						var unitTest = unitTestClasses[i];
-						if (unitTest[frameworkState] == null) {
-							file[frameworkState].registeredUnitTests.push(unitTest);
-							__TestPilot.initializeFrameworkState(unitTest);
-							__TestPilot.getFrameworkState(unitTest).file = file;
+						if (!existingUnitTest(unitTest)) {
+							file[__FRAMEWORK_PREFIX].registeredUnitTests.push(unitTest);
  						}
 					}
 				}
 				catch (e) {
-					file[frameworkState].error = e;
+					file[__FRAMEWORK_PREFIX].error = e;
 					console.log(e.stack);
 					console.log("TestPilot: Unable to load " + file.name + " - " + e);
 				}
@@ -184,7 +198,7 @@
 				try {
 					event.stopPropagation();
 					event.preventDefault();
-					__TestPilot.initializeTestPilotFramework();
+					testPilot.initializeTestPilotFramework();
 					renderSummary();
 					loadFiles();
 					loadFilesTimer();
@@ -221,20 +235,27 @@
 
 				for (var i = 0; i < fileList.length; ++i) {
 					var file = fileList[i];
-					if (file[frameworkState].registeredUnitTests.length == 0) {
-						if ((renderSuccessResults && file[frameworkState].error == null) || (renderFailedResults && file[frameworkState].error != null)) {
+					if (file[__FRAMEWORK_PREFIX].registeredUnitTests.length == 0) {
+						if ((renderSuccessResults && file[__FRAMEWORK_PREFIX].error == null) || (renderFailedResults && file[__FRAMEWORK_PREFIX].error != null)) {
 							renderJavaScriptFileDetail(rows, file, columnNames);
+							continue;
 						}
 					}
-					else {
-						var results = __TestPilot.getResults(file[frameworkState].registeredUnitTests);
-						renderUnitTest(rows, file.name, columnNames, results, renderSuccessResults, renderFailedResults);
-						for (var j = 0; j < results.length; ++j) {
-							renderResult(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults);
-							renderResultMessages(rows, file.name, columnNames, results[j], renderSuccessResults, renderMessages);
-							renderResultAssumptions(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults, renderAssumptions);
-							renderResultAssertions(rows, file.name, columnNames, results[j], renderSuccessResults, renderFailedResults, renderAssertions);
-							renderResultError(rows, file.name, columnNames, results[j], renderFailedResults, renderErrors);
+					for (var j = 0; j < unitTests.length; ++j) {
+						var unitTest = unitTests[j];
+						if (fileContainsUnitTest(file, unitTest)) {
+							var unitTestState = unitTest[__FRAMEWORK_PREFIX];
+							renderUnitTest(rows, file.name, columnNames, unitTest, renderSuccessResults, renderFailedResults);
+							var results = unitTestState.results;
+							for (var k = 0; k < results.length; ++k) {
+								var operation = results[k][0];
+								var result = results[k][1];
+								renderResult(rows, file.name, columnNames, unitTest, operation, result, renderSuccessResults, renderFailedResults);
+								renderResultMessages(rows, file.name, columnNames, unitTest, operation, result, renderSuccessResults, renderMessages);
+								renderResultAssumptions(rows, file.name, columnNames, unitTest, operation, result, renderSuccessResults, renderFailedResults, renderAssumptions);
+								renderResultAssertions(rows, file.name, columnNames, unitTest, operation, result, renderSuccessResults, renderFailedResults, renderAssertions);
+								renderResultError(rows, file.name, columnNames, unitTest, operation, result, renderFailedResults, renderErrors);
+							}
 						}
 					}
 				}
@@ -248,12 +269,12 @@
 
 			function renderJavaScriptFileDetail(rows, file, columnClasses) {
 				var columns = [
-					createDomElement("td", [file[frameworkState].error == null ? "Success" : "Failed"], {class: columnClasses[0]}),
+					createDomElement("td", [file[__FRAMEWORK_PREFIX].error == null ? "Success" : "Failed"], {class: columnClasses[0]}),
 					createDomElement("td", ["JavaScript"], {class: columnClasses[1]}),
 					createDomElement("td", [file.name], {class: columnClasses[2]}),
 					createDomElement("td", [""], {class: columnClasses[3]}),
 					createDomElement("td", [""], {class: columnClasses[4]}),
-					createDomElement("td", [file[frameworkState].error != null ? file[frameworkState].error.message : ""], {class: columnClasses[5]})
+					createDomElement("td", [file[__FRAMEWORK_PREFIX].error != null ? file[__FRAMEWORK_PREFIX].error.message : ""], {class: columnClasses[5]})
 				];
 				createRow(rows, columns);
 			}
@@ -261,15 +282,15 @@
 			// Add the summary of the result, including passed/failed status, the
 			// test category, name, and description.
 
-			function renderResult(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults) {
-				if ((renderSuccessResults && result.passed) || (renderFailedResults && !result.passed)) {
+			function renderResult(rows, fileName, columnClasses, unitTest, operation, result, renderSuccessResults, renderFailedResults) {
+				if ((renderSuccessResults && result.successful) || (renderFailedResults && !result.successful)) {
 					var columns = [
-						createDomElement("td", [result.passed ? "Success" : "Failed"], {class: columnClasses[0]}),
-						createDomElement("td", [result.category], {class: columnClasses[1]}),
+						createDomElement("td", [result.successful ? "Success" : "Failed"], {class: columnClasses[0]}),
+						createDomElement("td", [operation[__FRAMEWORK_PREFIX].category], {class: columnClasses[1]}),
 						createDomElement("td", [fileName], {class: columnClasses[2]}),
-						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
-						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
-						createDomElement("td", [result.description != null ? result.description : ""], {class: columnClasses[5]})
+						createDomElement("td", [unitTest[__FRAMEWORK_PREFIX].name], {class: columnClasses[3]}),
+						createDomElement("td", [operation[__FRAMEWORK_PREFIX].name], {class: columnClasses[4]}),
+						createDomElement("td", [operation[__FRAMEWORK_PREFIX].description != null ? operation[__FRAMEWORK_PREFIX].description : ""], {class: columnClasses[5]})
 					];
 					createRow(rows, columns);
 				}
@@ -277,7 +298,7 @@
 
 			// Optionally add the assertions evaluated during the test.
 
-			function renderResultAssertions(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults, renderAssertions) {
+			function renderResultAssertions(rows, fileName, columnClasses, unitTest, operation, result, renderSuccessResults, renderFailedResults, renderAssertions) {
 				for (var i = 0; renderAssertions && i < result.assertions.length; ++i) {
 					var assertion = result.assertions[i];
 					if ((renderSuccessResults && assertion.result) || (renderFailedResults && !assertion.result)) {
@@ -285,8 +306,8 @@
 							createDomElement("td", [assertion.result ? "True" : "False"], {class: columnClasses[0]}),
 							createDomElement("td", ["Assertion"], {class: columnClasses[1]}),
 							createDomElement("td", [fileName], {class: columnClasses[2]}),
-							createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
-							createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+							createDomElement("td", [unitTest[__FRAMEWORK_PREFIX].name], {class: columnClasses[3]}),
+							createDomElement("td", [operation[__FRAMEWORK_PREFIX].name], {class: columnClasses[4]}),
 							createDomElement("td", ["[" + assertion.type + "] " + (assertion.description != null ? assertion.description : "")], {class: columnClasses[5]})
 						];
 						createRow(rows, columns);
@@ -296,7 +317,7 @@
 
 			// Optionally add the assumptions evaluated during the test.
 
-			function renderResultAssumptions(rows, fileName, columnClasses, result, renderSuccessResults, renderFailedResults, renderAssumptions) {
+			function renderResultAssumptions(rows, fileName, columnClasses, unitTest, operation, result, renderSuccessResults, renderFailedResults, renderAssumptions) {
 				for (var i = 0; renderAssumptions && i < result.assumptions.length; ++i) {
 					var assumption = result.assumptions[i];
 					if ((renderSuccessResults && assumption.result) || (renderFailedResults && !assumption.result)) {
@@ -304,8 +325,8 @@
 							createDomElement("td", [assumption.result ? "True" : "False"], {class: columnClasses[0]}),
 							createDomElement("td", ["Assumption"], {class: columnClasses[1]}),
 							createDomElement("td", [fileName], {class: columnClasses[2]}),
-							createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
-							createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+							createDomElement("td", [unitTest[__FRAMEWORK_PREFIX].name], {class: columnClasses[3]}),
+							createDomElement("td", [operation[__FRAMEWORK_PREFIX].name], {class: columnClasses[4]}),
 							createDomElement("td", ["[" + assumption.type + "] " + (assumption.description != null ? assumption.description : "")], {class: columnClasses[5]})
 						];
 						createRow(rows, columns);
@@ -315,15 +336,15 @@
 
 			// Optionally add the error that caused the test to the test to fail.
 
-			function renderResultError(rows, fileName, columnClasses, result, renderFailedResults, renderErrors) {
+			function renderResultError(rows, fileName, columnClasses, unitTest, operation, result, renderFailedResults, renderErrors) {
 				if (renderErrors && result.error != null && renderFailedResults) {
 					var columns = [
 						createDomElement("td", ["Error"], {class: columnClasses[0]}),
 						createDomElement("td", ["Error"], {class: columnClasses[1]}),
 						createDomElement("td", [fileName], {class: columnClasses[2]}),
-						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
-						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
-						createDomElement("td", [result.error.message], {class: columnClasses[5]})
+						createDomElement("td", [unitTest[__FRAMEWORK_PREFIX].name], {class: columnClasses[3]}),
+						createDomElement("td", [operation[__FRAMEWORK_PREFIX].name], {class: columnClasses[4]}),
+						createDomElement("td", [result.error.message + (result.error.frameworkError ? "" : "\n" + result.error.stack)], {class: columnClasses[5]})
 					];
 					createRow(rows, columns);
 				}
@@ -331,14 +352,14 @@
 
 			// Optionally add the messages generated during the test.
 
-			function renderResultMessages(rows, fileName, columnClasses, result, renderSuccessResults, renderMessages) {
+			function renderResultMessages(rows, fileName, columnClasses, unitTest, operation, result, renderSuccessResults, renderMessages) {
 				for (var i = 0; renderMessages && renderSuccessResults && i < result.messages.length; ++i) {
 					var columns = [
 						createDomElement("td", [""], {class: columnClasses[0]}),
 						createDomElement("td", ["Message"], {class: columnClasses[1]}),
 						createDomElement("td", [fileName], {class: columnClasses[2]}),
-						createDomElement("td", [result.unitTestName], {class: columnClasses[3]}),
-						createDomElement("td", [result.operationName], {class: columnClasses[4]}),
+						createDomElement("td", [unitTest[__FRAMEWORK_PREFIX].name], {class: columnClasses[3]}),
+						createDomElement("td", [operation[__FRAMEWORK_PREFIX].name], {class: columnClasses[4]}),
 						createDomElement("td", [result.messages[i]], {class: columnClasses[5]})
 					];
 					createRow(rows, columns);
@@ -346,19 +367,19 @@
 			}
 
 			function renderSummary() {
-				var summary = __TestPilot.getSummary();
+				var summary = testPilot.getSummary();
 				var columnNames = ["category", "total", "passed", "failed"];
 				var rows = [];
-				rows.push(createDomElement("tr", renderSummaryRowColumns("test classes", summary.getUnitTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("before class operations", summary.getBeforeClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("after class operations", summary.getAfterClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("before operations", summary.getBeforeSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("after operations", summary.getAfterSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("test operations", summary.getTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("ignored operations", summary.getIgnoreSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("assertions", summary.getAssertionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("assumptions", summary.getAssumptionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
-				rows.push(createDomElement("tr", renderSummaryRowColumns("messages", summary.getMessageSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("unit test", summary.getUnitTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("before class", summary.getBeforeClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("after class", summary.getAfterClassSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("before", summary.getBeforeSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("after", summary.getAfterSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("test", summary.getTestSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("ignore", summary.getIgnoreSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("assert", summary.getAssertionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("assume", summary.getAssumptionSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
+				rows.push(createDomElement("tr", renderSummaryRowColumns("message", summary.getMessageSummary(), columnNames), {class: (rows.length % 2 == 0 ? "even" : "odd")}));
 				renderTable("summaryData", columnNames, rows);
 			}
 
@@ -385,19 +406,16 @@
 				document.getElementById(elementId).appendChild(table);
 			}
 
-			function renderUnitTest(rows, fileName, columnClasses, results,  renderSuccessResults, renderFailedResults) {
-				var successful = true;
-				for (var i = 0; i < results.length; ++i) {
-					successful &= results[i].error == null;
-				}
+			function renderUnitTest(rows, fileName, columnClasses, unitTest, renderSuccessResults, renderFailedResults) {
+				var successful = unitTest[__FRAMEWORK_PREFIX].successful;
 				if ((renderSuccessResults && successful) || (renderFailedResults && !successful)) {
 					var columns = [
 						createDomElement("td", [successful ? "Success" : "Failed"], {class: columnClasses[0]}),
 						createDomElement("td", ["Unit Test"], {class: columnClasses[1]}),
 						createDomElement("td", [fileName], {class: columnClasses[2]}),
-						createDomElement("td", [results[0].unitTestName], {class: columnClasses[3]}),
+						createDomElement("td", [unitTest.name != null ? unitTest.name : ""], {class: columnClasses[3]}),
 						createDomElement("td", [""], {class: columnClasses[4]}),
-						createDomElement("td", [results[0].unitTestDescription != null ? results[0].unitTestDescription : ""], {class: columnClasses[5]})
+						createDomElement("td", [unitTest.description != null ? unitTest.description : ""], {class: columnClasses[5]})
 					];
 					createRow(rows, columns);
 				}
@@ -494,11 +512,20 @@
 					renderError(e);
 				}
 			}
+
+			var __NAMESPACE_PREFIX = "$";
+			var __FRAMEWORK_PREFIX = __NAMESPACE_PREFIX + TestPilot.name;
+			var testPilot = new TestPilot(this, __NAMESPACE_PREFIX);
+			var fileList = [];
+			var totalFilesAdded = 0;
+			var unitTests = [];
+			document.getElementById("testPilot").onload = testPilotLoadEventHandler;
+
 		//]]>
 		</script>
 
 		<div id="header">
-			<h1>TestPilot.js - an annotations-based unit test framework</h1>
+			<h1>testpilot.js - an annotations-based unit test framework</h1>
 		</div>
 
 		<div id="documentation">
@@ -557,7 +584,7 @@
 				</h1>
 				<ul>
 					<!-- The loadFilesOption onclick event handler forces code to be loaded in the global namespace. -->
-					<li id="loadFilesOption" onclick="for (var i = 0; i < fileList.length; ++i) {try {var file = fileList[i]; eval(file[frameworkState].contents); processUnitTests(file);} catch (e) {file[frameworkState].error = e; renderError(e);}}; execute();"></li>
+					<li id="loadFilesOption" onclick="for (var i = 0; i < fileList.length; ++i) {try {var file = fileList[i]; eval(file[__FRAMEWORK_PREFIX].contents); processUnitTests(file);} catch (e) {file[__FRAMEWORK_PREFIX].error = e; renderError(e);}}; execute();"></li>
 					<li id="reloadFilesOption">reload</li>
 					<li id="renderSuccessResultsOption">success</li>
 					<li id="renderFailedResultsOption">failed</li>

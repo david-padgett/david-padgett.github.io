@@ -23,20 +23,280 @@
  */
 
 
-var __TestPilot = {
+function TestPilot(rootNamespace, namespacePrefix) {
 
-	FRAMEWORK_PREFIX: "__TestPilot",
-	NAMESPACE_PREFIX: "$",
-	NAMESPACE: this,
-	ALIASED_FUNCTIONS: [],
-	UNIT_TESTS: [],
-	UNIT_TEST: null,
-	SUMMARY: null,
 
-	AnnotationTypes: {
+	var __THIS = this;
+	var __ROOT_NAMESPACE = rootNamespace;
+	var __NAMESPACE_PREFIX = namespacePrefix == null ? "$" : namespacePrefix;
+	var __MODULE_PREFIX = __NAMESPACE_PREFIX + this.constructor.name;
+	var __MODULE = new __Module(new __ModuleDelegate());
+	var __BLANKS = new Array(51).join(' ');
 
-		TestPilotAnnotation: function TestPilotAnnotation() {
-		},
+
+	function __getCurrentResult() {
+		var results = __THIS.unitTest[__MODULE_PREFIX].results;
+		return (results[results.length - 1][1]);
+	}
+
+	function __leftJustify(str, width) {
+		return ((str + __BLANKS).substr(0, width));
+	}
+
+	function __rightJustify(str, width) {
+		str = __BLANKS + str;
+		return (str.substr(str.length - width));
+	}
+
+	function __format(status, category, className, operationName, description) {
+		var status = __leftJustify(status, 10);
+		var category = __leftJustify(category, 15);
+		var className = __leftJustify(className, 20);
+		var operationName = __leftJustify(operationName, 35);
+		return (status + " " + category + " " + className + " " + operationName + " " + description + "\n");
+	}
+
+
+	function __Module(delegate) {
+
+
+
+
+
+		this.__delegate = delegate;
+		this.__containers = [];
+
+
+
+
+		this.addToNamespace = function addToNamespace(name, value) {
+			__ROOT_NAMESPACE[name] = value;
+			this.invokeDelegate(arguments.callee.name);
+		};
+
+
+		this.invokeDelegate = function(operation) {
+			if (this.__delegate != null && this.__delegate[operation] != null && this.__delegate[operation].constructor === Function) {
+				delegate[operation].apply(delegate, Array.prototype.slice.call(arguments, 1));
+			}
+		}
+
+
+		this.initializeDispatcher = function(container, api) {
+			var dispatcher = function __ModuleApiDispatcher() {
+				var args = Array.prototype.slice.call(arguments, 0);
+				return (api.apply(container, args));
+			};
+			return (dispatcher);
+		};
+
+
+		this.install = function install(containers) {
+			this.__containers = containers;
+			this.manageAliases(this.__containers, true);
+			this.invokeDelegate(arguments.callee.name);
+		};
+
+
+		this.manageAliases = function(containers, addFunctions) {
+			for (var i = 0; i < containers.length; ++i) {
+				var container = containers[i];
+				for (var j in container) {
+					if (container[j] != null) {
+						var name = null;
+						var value = null;
+						if (container[j].constructor !== Function && j[0] != "_") {
+							name = __NAMESPACE_PREFIX + j;
+							value = container[j];
+						}
+						else {
+							if (container[j].constructor === Function && container[j].name.length > 0) {
+								var api = container[j];
+								var name = __NAMESPACE_PREFIX + container[j].name;
+								value = this.initializeDispatcher(container, api);
+							}
+						}
+						if (name != null && value != null) {
+							if (addFunctions) {
+								this.addToNamespace(name, value);
+							}
+							else {
+								this.removeFromNamespace(name);
+							}
+						}
+					}
+				}
+			}
+		};
+
+
+		this.removeFromNamespace = function removeFromNamespace(name) {
+			this.invokeDelegate(arguments.callee.name);
+			if (!(delete __ROOT_NAMESPACE[name])) {
+				__ROOT_NAMESPACE[name] = null;
+			}
+		};
+
+
+		this.uninstall = function uninstall() {
+			this.invokeDelegate(arguments.callee.name);
+			this.manageAliases(this.__containers, false);
+		};
+
+
+		if (__ROOT_NAMESPACE == null) {
+			throw new Error("Unable to initialize " + __THIS.constructor.name + ": No root namespace provided when instantiated.");
+		}
+
+	}
+
+	function __ModuleDelegate() {
+
+
+
+
+
+
+
+		this.install = function() {
+			__THIS.initializeAnnotations();
+		};
+
+		this.uninstall = function() {
+			__THIS.annotations.removeAnnotationsFramework();
+		};
+
+
+	}
+
+	function Operation(name, category, description) {
+
+
+
+
+
+		this.name = name;
+		this.category = category;
+		this.description = description;
+
+
+
+
+	};
+
+	function Result(unitTest, operation) {
+
+
+
+
+
+		this.assertions = [];
+		this.assumptions = [];
+		this.messages = [];
+		this.successful = true;
+
+
+
+
+	};
+
+	function Summary() {
+
+
+		var members = [
+			__THIS.annotationTypes.UnitTestAnnotation.name,
+			__THIS.annotationTypes.BeforeClassAnnotation.name,
+			__THIS.annotationTypes.AfterClassAnnotation.name,
+			__THIS.annotationTypes.BeforeAnnotation.name,
+			__THIS.annotationTypes.AfterAnnotation.name,
+			__THIS.annotationTypes.TestAnnotation.name,
+			__THIS.annotationTypes.IgnoreAnnotation.name,
+			__THIS.assertions.assert.name,
+			__THIS.assumptions.assume.name,
+			__THIS.message.name
+		];
+
+
+
+
+
+
+		this.getAfterSummary = function() {
+			return (this[members[4]]);
+		};
+
+		this.getAfterClassSummary = function() {
+			return (this[members[2]]);
+		};
+
+		this.getAssertionSummary = function() {
+			return (this[members[7]]);
+		};
+
+		this.getAssumptionSummary = function() {
+			return (this[members[8]]);
+		};
+
+		this.getBeforeSummary = function() {
+			return (this[members[3]]);
+		};
+
+		this.getBeforeClassSummary = function() {
+			return (this[members[1]]);
+		};
+
+		this.getIgnoreSummary = function() {
+			return (this[members[6]]);
+		};
+
+		this.getMessageSummary = function() {
+			return (this[members[9]]);
+		};
+
+		this.getTestSummary = function() {
+			return (this[members[5]]);
+		};
+
+		this.getUnitTestSummary = function() {
+			return (this[members[0]]);
+		};
+
+
+		for (var i = 0; i < members.length; ++i) {
+			this[members[i]] = new SummaryValue(0, 0, 0);
+		};
+
+	};
+
+	function SummaryValue(total, passed, failed) {
+
+
+
+
+
+		this.total = total;
+		this.passed = passed;
+		this.failed = failed;
+
+
+
+		this.update = function(successful) {
+			this.total++;
+			this.passed += successful == true ? 1 : 0;
+			this.failed += successful == false ? 1 : 0;
+		};
+
+
+	};
+
+
+	this.annotations = new Annotations(__ROOT_NAMESPACE, __NAMESPACE_PREFIX);
+	this.aliasedFunctions = [];
+	this.unitTests = [];
+	this.unitTest = null;
+	this.summary = null;
+
+	this.annotationTypes = {
 
 		AfterAnnotation: function After(description) {
 			this.description = description;
@@ -66,95 +326,13 @@ var __TestPilot = {
 			this.description = description;
 		}
 
-	},
+	};
 
-	Operation: function(unitTestName, unitTestDescription, operationName, category, description) {
-		this.unitTestName = unitTestName;
-		this.unitTestDescription = unitTestDescription;
-		this.operationName = operationName;
-		this.category = category;
-		this.description = description;
-	},
-
-	Result: function(operation) {
-		var frameworkState = __TestPilot.getFrameworkState(operation);
-		this.unitTestName = frameworkState.unitTestName;
-		this.unitTestDescription = frameworkState.unitTestDescription;
-		this.operationName = frameworkState.operationName;
-		this.category = frameworkState.category;
-		this.description = frameworkState.description;
-		this.assertions = [];
-		this.assumptions = [];
-		this.messages = [];
-		this.passed = true;
-	},
-
-	Summary: function() {
-
-		var members = [__TestPilot.AnnotationTypes.UnitTestAnnotation.name, __TestPilot.AnnotationTypes.BeforeAnnotation.name, __TestPilot.AnnotationTypes.BeforeClassAnnotation.name, __TestPilot.AnnotationTypes.AfterAnnotation.name, __TestPilot.AnnotationTypes.AfterClassAnnotation.name, __TestPilot.AnnotationTypes.TestAnnotation.name, __TestPilot.AnnotationTypes.IgnoreAnnotation.name, __TestPilot.Assertions.assert.name, __TestPilot.Assumptions.assume.name, __TestPilot.message.name];
-		for (var i = 0; i < members.length; ++i) {
-			this[members[i]] = new __TestPilot.SummaryValue(0, 0, 0);
-		};
-
-		this.getUnitTestSummary = function() {
-			return (this[members[0]]);
-		};
-
-		this.getBeforeSummary = function() {
-			return (this[members[1]]);
-		};
-
-		this.getBeforeClassSummary = function() {
-			return (this[members[2]]);
-		};
-
-		this.getAfterSummary = function() {
-			return (this[members[3]]);
-		};
-
-		this.getAfterClassSummary = function() {
-			return (this[members[4]]);
-		};
-
-		this.getTestSummary = function() {
-			return (this[members[5]]);
-		};
-
-		this.getIgnoreSummary = function() {
-			return (this[members[6]]);
-		};
-
-		this.getAssertionSummary = function() {
-			return (this[members[7]]);
-		};
-
-		this.getAssumptionSummary = function() {
-			return (this[members[8]]);
-		};
-
-		this.getMessageSummary = function() {
-			return (this[members[9]]);
-		};
-
-	},
-
-	SummaryValue: function(total, passed, failed) {
-		this.total = total;
-		this.passed = passed;
-		this.failed = failed;
-
-		this.update = function(successful) {
-			this.total++;
-			this.passed += successful == true ? 1 : 0;
-			this.failed += successful == false ? 1 : 0;
-		};
-	},
-
-	Assertions: {
+	this.assertions = {
 
 		assert: function Assert(assertion, description) {
-			__TestPilot.getCurrentResult().assertions.push(assertion);
-			__TestPilot.updateSummary(__TestPilot.Assertions.assert.name, assertion.result);
+			__getCurrentResult().assertions.push(assertion);
+			__THIS.summary[this.assert.name].update(assertion.result);
 			assertion.type = assertion.constructor.name;
 			assertion.description = description;
 			assertion.isFatalError = function() {
@@ -163,6 +341,7 @@ var __TestPilot = {
 			if (assertion.result == false) {
 				var error = new Error(assertion.type + ": " + (assertion.description != null ? assertion.description : ""));
 				error.cause = assertion;
+				error.frameworkError = true;
 				throw error;
 			}
 			return (assertion);
@@ -175,79 +354,88 @@ var __TestPilot = {
 					this.result = expr1[i] == expr2[i];
 				}
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr1, expr2), description));
+			return (this.assert(new fn(expr1, expr2), description));
 		},
 
 		assertEquals: function AssertEquals(expr1, expr2, description) {
 			var fn = function AssertEquals(value1, value2) {
 				this.result = value1 == value2;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr1, expr2), description));
+			return (this.assert(new fn(expr1, expr2), description));
 		},
 
 		assertFalse: function AssertFalse(expr, description) {
 			var fn = function AssertFalse(value) {
 				this.result = value == false;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr), description));
+			return (this.assert(new fn(expr), description));
+		},
+
+		assertIdentical: function AssertIdentical(expr1, expr2, description) {
+			var fn = function AssertSame(value1, value2) {
+				this.result = value1 === value2;
+			};
+			return (this.assert(new fn(expr1, expr2), description));
 		},
 
 		assertNotEquals: function AssertNotEquals(expr1, expr2, description) {
 			var fn = function AssertNotEquals(value1, value2) {
 				this.result = value1 != value2;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr1, expr2), description));
+			return (this.assert(new fn(expr1, expr2), description));
 		},
 
 		assertNotNull: function AssertNotNull(expr, description) {
 			var fn = function AssertNotNull(value) {
 				this.result = value != null;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr), description));
+			return (this.assert(new fn(expr), description));
 		},
 
-		assertNotSame: function AssertNotSame(expr1, expr2, description) {
+		assertNotIdentical: function AssertNotIdentical(expr1, expr2, description) {
 			var fn = function AssertNotSame(value1, value2) {
 				this.result = value1 !== value2;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr1, expr2), description));
+			return (this.assert(new fn(expr1, expr2), description));
 		},
 
 		assertNull: function AssertNull(expr, description) {
 			var fn = function AssertNull(value) {
 				this.result = value == null;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr), description));
-		},
-
-		assertSame: function AssertSame(expr1, expr2, description) {
-			var fn = function AssertSame(value1, value2) {
-				this.result = value1 === value2;
-			};
-			return (__TestPilot.Assertions.assert(new fn(expr1, expr2), description));
+			return (this.assert(new fn(expr), description));
 		},
 
 		assertTrue: function AssertTrue(expr, description) {
 			var fn = function AssertTrue(value) {
 				this.result = expr == true;
 			};
-			return (__TestPilot.Assertions.assert(new fn(expr), description));
+			return (this.assert(new fn(expr), description));
 		},
 
-		fail: function Fail(message) {
-			var fn = function Fail() {
-				this.result = false;
+		error: function Error(expr, expectedError, description) {
+			var fn = function Error(expr) {
+				try {
+					expr();
+					this.result = false;
+				}
+				catch (e) {
+					this.result = expectedError == null ? true : expectedError.constructor === e.constructor && (expectedError.message === null || expectedError.message == e.message);
+					if (!this.result) {
+						throw e;
+					}
+				}
 			};
-			return (__TestPilot.Assertions.assert(new fn(), message));
+			return (this.assert(new fn(expr), description));
 		}
 
-	},
+	};
 
-	Assumptions: {
+	this.assumptions = {
 
 		assume: function Assume(assumption, description) {
-			__TestPilot.getCurrentResult().assumptions.push(assumption);
-			__TestPilot.updateSummary(__TestPilot.Assumptions.assume.name, assumption.result);
+			__getCurrentResult().assumptions.push(assumption);
+			__THIS.summary[this.assume.name].update(assumption.result);
 			assumption.type = assumption.constructor.name;
 			assumption.description = description;
 			assumption.isFatalError = function() {
@@ -256,6 +444,7 @@ var __TestPilot = {
 			if (assumption.result == false) {
 				var error = new Error(assumption.type + ": " + (assumption.description != null ? assumption.description : ""));
 				error.cause = assumption;
+				error.frameworkError = true;
 				throw error;
 			}
 			return (assumption);
@@ -263,240 +452,180 @@ var __TestPilot = {
 
 		assumeFalse: function AssumeFalse(expr, description) {
 			var fn = function AssumeFalse(value) {
-				this.result = expr == false;
+				this.result = expr === false;
 			};
-			return (__TestPilot.Assumptions.assume(new fn(expr), description));
+			return (this.assume(new fn(expr), description));
 		},
 
 		assumeTrue: function AssumeTrue(expr, description) {
 			var fn = function AssumeTrue(value) {
-				this.result = expr == true;
+				this.result = expr === true;
 			};
-			return (__TestPilot.Assumptions.assume(new fn(expr), description));
+			return (this.assume(new fn(expr), description));
 		}
 
-	},
-
-	addToNamespace: function(name, value) {
-		__TestPilot.NAMESPACE[name] = value;
-	},
+	};
 
 
-	addResult: function(unitTest, operation) {
 
 
-		var result = new __TestPilot.Result(operation);
-		__TestPilot.getFrameworkState(unitTest).results.push(result);
-		return (result);
-	},
-
-
-	getCurrentResult: function() {
-		var results = __TestPilot.getFrameworkState(__TestPilot.UNIT_TEST).results;
-		return (results[results.length - 1]);
-	},
-
-
-	getFrameworkState: function(object) {
-		return (object == null ? null : object[__TestPilot.FRAMEWORK_PREFIX]);
-	},
-
-
-	getOperations: function(category, unitTest) {
+	this.getOperations = function(unitTest, category) {
 
 
 		var result = [];
 		for (var name in unitTest) {
 			var operation = unitTest[name];
-			var state = __TestPilot.getFrameworkState(operation);
-			if (operation != null && operation.constructor == Function && state != null && state.category == category) {
+			var state = operation[__MODULE_PREFIX];
+			if (operation != null && operation.constructor == Function && state != null && (category == null || state.category == category)) {
 				result.push(operation);
 			}
 		}
 		return (result);
-	},
+	};
 
-	getReport: function() {
-		var blankStr =  "                                                  ";
-
-		var leftJustify = function(str, width) {
-			return ((str + blankStr).substr(0, width));
-		}
-
-		var rightJustify = function(str, width) {
-			str = blankStr + str;
-			return (str.substr(str.length - width));
-		}
-
-		var format = function(status, category, className, operationName, description) {
-			var status = leftJustify(status, 10);
-			var category = leftJustify(category, 15);
-			var className = leftJustify(className, 20);
-			var operationName = leftJustify(operationName, 35);
-			return (status + " " + category + " " + className + " " + operationName + " " + description + "\n");
-		}
-
+	this.getReport = function() {
 		var report = "TestPilot Summary\n\n";
-		var title = leftJustify("Category", 15);
-		var total = leftJustify("Total", 10);
-		var passed = leftJustify("Passed", 10);
-		var failed = leftJustify("Failed", 10);
+		var title = __leftJustify("Category", 15);
+		var total = __leftJustify("Total", 10);
+		var passed = __leftJustify("Passed", 10);
+		var failed = __leftJustify("Failed", 10);
 		report += title + " " + total + " " + passed + " " + failed + "\n";
-		var summary = __TestPilot.getSummary();
+		var summary = this.getSummary();
 		for (var i in summary) {
-			if (summary[i].constructor == __TestPilot.SummaryValue) {
-				var title = leftJustify(i, 15);
-				var total = rightJustify(summary[i].total, 5);
-				var passed = rightJustify(summary[i].passed, 11);
-				var failed = rightJustify(summary[i].failed, 10);
+			if (summary[i].constructor == SummaryValue) {
+				var title = __leftJustify(i, 15);
+				var total = __rightJustify(summary[i].total, 5);
+				var passed = __rightJustify(summary[i].passed, 11);
+				var failed = __rightJustify(summary[i].failed, 10);
 				report += title + " " + total + " " + passed + " " + failed + "\n";
 			}
 		}
 
 		report += "\nTestPilot Details\n\n";
-		report += format("Status", "Category", "Class", "Operation", "Description");
-		var successful = true;
-		var unitTestName = null;
-		var results = __TestPilot.getResults();
-		for (var i = 0; i < results.length; ++i) {
-			var result = results[i];
-			successful &= result.passed;
+		report += __format("Status", "Category", "Class", "Operation", "Description");
 
-			if (unitTestName != null && unitTestName != result.unitTestName) {
-				unitTestName = result.unitTestName;
-				report += format(successful ? "Success" : "Failed", "Unit Test", results[i - 1].unitTestName, " ", results[i - 1].unitTestDescription);
-				successful = true;
+		for (var i = 0; i < this.unitTests.length; ++i) {
+			var unitTest = this.unitTests[i];
+			var unitTestState = unitTest[__MODULE_PREFIX];
+			var results = unitTestState.results;
+			var details = "";
+			for (var j = 0; j < results.length; ++j) {
+				var operation = results[j][0];
+				var result = results[j][1];
+				var operationState = operation[__MODULE_PREFIX];
+				details += __format(result.successful ? "Success" : "Failed", operationState.category, unitTestState.name, operationState.name, result.description != null ? result.description : "");
+				for (var k = 0; k < result.messages.length; ++k) {
+					details += __format("", "Message", unitTestState.name, operationState.name, result.messages[k]);
+				}
+				for (var k = 0; k < result.assumptions.length; ++k) {
+					var assumption = result.assumptions[k];
+					details += __format(assumption.result ? "True" : "False", "Assumption", unitTestState.name, operationState.name, "[" + assumption.type + "] " + (assumption.description != null ? assumption.description : ""));
+				}
+				for (var k = 0; k < result.assertions.length; ++k) {
+					var assertion = result.assertions[k];
+					details += __format(assertion.result ? "True" : "False", "Assertion", unitTestState.name, operationState.name, "[" + assertion.type + "] " + (assertion.description != null ? assertion.description : ""));
+				}
+				if (result.error != null && !result.error.frameworkError) {
+					details += __format("Error", "Error", unitTestState.name, operationState.name, result.error.cause == null ? "" : result.error.cause.type + ": " + result.error.cause.description);
+				}
 			}
-			unitTestName = result.unitTestName;
-			report += format(result.passed ? "Success" : "Failed", result.category, result.unitTestName, result.operationName, "");
-			for (var j = 0; j < result.messages.length; ++j) {
-				report += format("", "Message", result.unitTestName, result.operationName, result.messages[j]);
-			}
-			for (var j = 0; j < result.assumptions.length; ++j) {
-				var assumption = result.assumptions[j];
-				successful &= assumption.assumption;
-				report += format(assumption.assumption ? "True" : "False", "Assumption", result.unitTestName, result.operationName, "[" + assumption.type + "] " + assumption.description);
-			}
-			for (var j = 0; j < result.assertions.length; ++j) {
-				var assertion = result.assertions[j];
-				successful &= assertion.assumption;
-				report += format(assertion.result ? "True" : "False", "Assertion", result.unitTestName, result.operationName, "[" + assertion.type + "] " + assertion.description);
-			}
-			if (result.error != null) {
-				var cause = result.error.cause;
-				successful &= cause.result;
-				report += format("Error", "Error", result.unitTestName, result.operationName, cause.type + ": " + cause.description);
-			}
+			report += __format(unitTestState.successful ? "Success" : "Failed", this.annotationTypes.UnitTestAnnotation.name, unitTestState.name, "", unitTestState.description) + details;
 		}
-		var i = results.length;
-		report += format(successful ? "Success" : "Failed", "Unit Test", results[i - 1].unitTestName, "", results[i - 1].unitTestDescription);
 		return (report);
-	},
+	};
 
 
-	getResults: function() {
+	this.getResults = function() {
 		var results = [];
-		for (var i = 0; i < __TestPilot.UNIT_TESTS.length; ++i) {
+		for (var i = 0; i < this.unitTests.length; ++i) {
 
 
-			var unitTest = __TestPilot.UNIT_TESTS[i];
+			var unitTest = this.unitTests[i];
 			if (arguments.length == 0) {
-				results = results.concat(__TestPilot.getFrameworkState(unitTest).results);
+				results = results.concat(unitTest[__MODULE_PREFIX].results);
 			}
 			else {
-				var unitTestTypes = arguments[0].constructor == Array ? arguments[0] : arguments;
+				var unitTestTypes = Array.prototype.slice.call(arguments);
 				for (var j = 0; j < unitTestTypes.length; ++j) {
 					if (unitTestTypes[j] == unitTest.constructor || unitTestTypes[j] == unitTest) {
-						results = results.concat(__TestPilot.getFrameworkState(unitTest).results);
+						results = results.concat(unitTest[__MODULE_PREFIX].results);
 						break;
 					}
 				}
 			}
 		}
 		return (results);
-	},
+	};
 
 
-	getSummary: function() {
-		if (__TestPilot.SUMMARY == null) {
-			__TestPilot.SUMMARY = new __TestPilot.Summary();
+	this.getSummary = function() {
+		if (this.summary == null) {
+			this.summary = new Summary(this.summarySections);
 		}
-		return (__TestPilot.SUMMARY);
-	},
+		return (this.summary);
+	};
 
-	initializeAliases: function() {
-		var containers = [__TestPilot, __TestPilot.Assertions, __TestPilot.Assumptions];
-		for (var i = 0; i < containers.length; ++i) {
-			var container = containers[i];
-			for (var j in container) {
-				if (container[j] != null && container[j].constructor == Function && container[j].name != "") {
-					var namespaceName = __TestPilot.NAMESPACE_PREFIX + container[j].name;
-					__TestPilot.addToNamespace(namespaceName, container[j]);
-					__TestPilot.ALIASED_FUNCTIONS.push(namespaceName);
-				}
-			}
-		}
-	},
+	this.initializeAnnotations = function() {
+		this.annotations.annotate(this.annotationTypes.AfterAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.AfterClassAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.BeforeAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.BeforeClassAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.IgnoreAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.TestAnnotation, this.annotations.addAnnotation("MethodAnnotation"));
+		this.annotations.annotate(this.annotationTypes.UnitTestAnnotation, this.annotations.addAnnotation("TypeAnnotation"));
+	};
 
-
-	initializeFrameworkState: function(object) {
-		if (object != null && object[__TestPilot.FRAMEWORK_PREFIX] == null) {
-			object[__TestPilot.FRAMEWORK_PREFIX] = {
+	this.initializeUnitTest = function(unitTest) {
+		if (unitTest != null && unitTest[__MODULE_PREFIX] == null) {
+			unitTest[__MODULE_PREFIX] = {
+				name: null,
+				description: null,
+				successful: true,
 				results: []
 			};
+			this.unitTests.push(unitTest);
 		}
-	},
+	};
 
 
-	initializeTestPilotFramework: function() {
-		__TestPilot.UNIT_TESTS = [];
-		__TestPilot.UNIT_TEST = null;
-		__TestPilot.SUMMARY = null;
-		__Annotations.setNamespace(__TestPilot.NAMESPACE);
-		__Annotations.setNamespacePrefix(__TestPilot.NAMESPACE_PREFIX);
-		__TestPilot.initializeAliases();
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.TestPilotAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.TypeAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.AfterAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.AfterClassAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.BeforeAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.BeforeClassAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.IgnoreAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.TestAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.MethodAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-		__Annotations.defineAnnotation(__TestPilot.AnnotationTypes.UnitTestAnnotation, __Annotations.addAnnotations(__Annotations.AnnotationTypes.TypeAnnotation, __Annotations.AnnotationTypes.ObjectAnnotation, __TestPilot.AnnotationTypes.TestPilotAnnotation));
-	},
-
-
-	initializeUnitTests: function() {
-		var unitTestTypes = __Annotations.getAnnotatedConstructs(__TestPilot.AnnotationTypes.UnitTestAnnotation);
+	this.initializeUnitTests = function() {
+		var unitTestTypes = this.annotations.getAnnotatedConstructs(this.annotationTypes.UnitTestAnnotation);
 		for (var i = 0; i < unitTestTypes.length; ++i) {
 
 
 			var unitTestType = unitTestTypes[i];
-			var unitTestDescription =__Annotations.getAnnotations(unitTestType)[0].description;
-			__TestPilot.initializeFrameworkState(unitTestType);
-			var unitTest = unitTestType.constructor == Function ? new unitTestType() : unitTestType;
-			__TestPilot.UNIT_TESTS.push(unitTest);
+			try {
+				var unitTest = unitTestType.constructor == Function ? this.annotations.createAnnotatedInstance(unitTestType) : unitTestType;
+				this.initializeUnitTest(unitTest);
 
 
-			for (var operationName in unitTest) {
-				var operation = unitTest[operationName];
-				if (operation != null && operation.constructor == Function) {
-					var annotations = __Annotations.getAnnotations(operation);
-					if (annotations != null && annotations.length > 0) {
-						operation[__TestPilot.FRAMEWORK_PREFIX] = new __TestPilot.Operation(unitTest.constructor.name, unitTestDescription, operationName, annotations[0].constructor.name, annotations[0].description);
+				var state = unitTest[__MODULE_PREFIX];
+				state.name = unitTestType.constructor == Function ? unitTestType.name : unitTest.constructor.name;
+				state.description = this.annotations.getAnnotations(unitTestType)[0].description;
+				for (var operationName in unitTest) {
+					var operation = unitTest[operationName];
+					if (operation != null && operation.constructor == Function && operationName != "constructor") {
+						var annotations = this.annotations.getAnnotations(operation);
+						if (annotations != null && annotations.length > 0) {
+							operation[__MODULE_PREFIX] = new Operation(operationName, annotations[0].constructor.name, annotations[0].description);
+						}
 					}
 				}
 			}
+			catch (e) {
+				this.initializeUnitTest(unitTestType);
+				unitTestType[__MODULE_PREFIX].successful = false;
+				this.unitTests.push(unitTestType);
+			}
 		}
-
-		return (unitTestTypes);
-	},
+	};
 
 
-	invokeOperation: function(unitTest, operation) {
+	this.invokeOperation = function(unitTest, operation) {
 
 
-		var result = __TestPilot.addResult(unitTest, operation);
+		var result = new Result(unitTest, operation);
+		unitTest[__MODULE_PREFIX].results.push([operation, result]);
 		try {
 			operation.apply(unitTest, []);
 		}
@@ -504,104 +633,63 @@ var __TestPilot = {
 
 
 			result.error = e;
-			result.passed = e.cause != null ? !e.cause.isFatalError() : false;
+			result.successful = e.cause != null ? !e.cause.isFatalError() : false;
+			if (e.cause == null) {
+				e.frameworkError = false;
+				e.cause = {
+					type: e.message,
+					description: e.stack
+				}
+			}
 		}
 		finally {
-			__TestPilot.updateSummary(__TestPilot.getFrameworkState(operation).category, result.passed);
+			unitTest[__MODULE_PREFIX].successful = unitTest[__MODULE_PREFIX].successful && result.successful;
+			this.summary[operation[__MODULE_PREFIX].category].update(result.successful);
 		}
-		return (result == null ? false : result.passed);
-	},
+	};
 
 
-	invokeOperations: function(category, unitTest) {
-		var passed = true;
-		var operations = __TestPilot.getOperations(category, unitTest);
+	this.invokeOperations = function(unitTest, category) {
+		var operations = this.getOperations(unitTest, category);
 		for (var i = 0; i < operations.length; ++i) {
-			passed &= __TestPilot.invokeOperation(unitTest, operations[i]);
+			this.invokeOperation(unitTest, operations[i]);
 		}
-		return (passed);
-	},
+	};
+
+	this.message = function Message(value) {
+		__getCurrentResult().messages.push(value);
+		this.summary[this.message.name].update(true);
+	};
+
+	this.registerUnitTest = function RegisterUnitTest(unitTest) {
+		this.annotations.annotate(unitTest);
+	};
 
 
-	message: function Message(value) {
-		__TestPilot.getCurrentResult().messages.push(value);
-		__TestPilot.updateSummary(__TestPilot.message.name, true);
-	},
-
-	removeFromNamespace: function(name) {
-		delete __TestPilot.NAMESPACE[name];
-	},
+	this.runUnitTests = function() {
+		this.getSummary();
+		this.initializeUnitTests();
 
 
-	removeTestPilotFramework: function() {
+		for (var i = 0; i < this.unitTests.length; ++i) {
+			this.unitTest = this.unitTests[i];
 
 
-		for (var i = 0; i < __TestPilot.ALIASED_FUNCTIONS.length; ++i) {
-			__TestPilot.removeFromNamespace(__TestPilot.ALIASED_FUNCTIONS[i]);
-		}
-
-
-		__Annotations.removeAnnotationsFramework();
-	},
-
-
-	runUnitTests: function() {
-		__TestPilot.getSummary();
-		__TestPilot.initializeUnitTests();
-
-
-		for (var i = 0; i < __TestPilot.UNIT_TESTS.length; ++i) {
-			var unitTest = __TestPilot.UNIT_TESTS[i];
-			__TestPilot.initializeFrameworkState(unitTest);
-			__TestPilot.UNIT_TEST = unitTest;
-
-
-			var passed = __TestPilot.invokeOperations(__TestPilot.AnnotationTypes.BeforeClassAnnotation.name, unitTest);
-			var operations = __TestPilot.getOperations(__TestPilot.AnnotationTypes.TestAnnotation.name, unitTest);
+			this.invokeOperations(this.unitTest, this.annotationTypes.BeforeClassAnnotation.name);
+			var operations = this.getOperations(this.unitTest, this.annotationTypes.TestAnnotation.name);
 			for (var j = 0; j < operations.length; ++j) {
-				passed &= __TestPilot.invokeOperations(__TestPilot.AnnotationTypes.BeforeAnnotation.name, unitTest);
-				passed &= __TestPilot.invokeOperation(unitTest, operations[j]);
-				passed &= __TestPilot.invokeOperations(__TestPilot.AnnotationTypes.AfterAnnotation.name, unitTest);
+				this.invokeOperations(this.unitTest, this.annotationTypes.BeforeAnnotation.name);
+				this.invokeOperation(this.unitTest, operations[j]);
+				this.invokeOperations(this.unitTest, this.annotationTypes.AfterAnnotation.name);
 			}
-			passed &= __TestPilot.invokeOperations(__TestPilot.AnnotationTypes.AfterClassAnnotation.name, unitTest);
-			__TestPilot.updateSummary(__TestPilot.AnnotationTypes.UnitTestAnnotation.name, passed);
-			__TestPilot.SUMMARY[__TestPilot.AnnotationTypes.IgnoreAnnotation.name].total += __TestPilot.getOperations(__TestPilot.AnnotationTypes.IgnoreAnnotation.name, unitTest).length;
+			this.invokeOperations(this.unitTest, this.annotationTypes.AfterClassAnnotation.name);
+			this.summary[this.annotationTypes.UnitTestAnnotation.name].update(this.unitTest[__MODULE_PREFIX].successful);
+			this.summary[this.annotationTypes.IgnoreAnnotation.name].total += this.getOperations(this.unitTest, this.annotationTypes.IgnoreAnnotation.name).length;
 		}
-		__TestPilot.UNIT_TEST = null;
-	},
+		this.unitTest = null;
+		return (this.unitTests);
+	};
 
 
-	setFrameworkPrefix: function(frameworkPrefix) {
-		if (frameworkPrefix != null) {
-			__TestPilot.removeTestPilotFramework();
-			__TestPilot.FRAMEWORK_PREFIX = frameworkPrefix.toString();
-			__TestPilot.initializeTestPilotFramework();
-		}
-	},
-
-
-	setNamespace: function(namespace) {
-		if (namespace != null) {
-			__TestPilot.removeTestPilotFramework();
-			__TestPilot.NAMESPACE = namespace;
-			__TestPilot.initializeTestPilotFramework();
-		}
-	},
-
-
-	setNamespacePrefix: function(namespacePrefix) {
-		if (namespacePrefix != null) {
-			__TestPilot.removeTestPilotFramework();
-			__TestPilot.NAMESPACE_PREFIX = namespacePrefix.toString();
-			__TestPilot.initializeTestPilotFramework();
-		}
-	},
-
-
-	updateSummary: function(category, result) {
-		__TestPilot.SUMMARY[category].update(result);
-	}
-
+	__MODULE.install([__THIS, this.assertions, this.assumptions]);
 }
-
-__TestPilot.initializeTestPilotFramework();
